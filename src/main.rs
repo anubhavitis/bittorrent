@@ -27,7 +27,6 @@ fn decode_bencoded_list(encoded_value: &str) -> (serde_json::Value, usize) {
     let mut values = Vec::new();
     while encoded_value.chars().nth(current_index).unwrap() != 'e' {
         let (value, value_len) = decode_bencoded_value(&encoded_value[current_index..]);
-        println!("value: {} and length: {}", value, value_len);
         values.push(value);
         current_index += value_len;
     }
