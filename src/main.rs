@@ -1,5 +1,7 @@
 use std::env;
+
 mod bencode;
+mod info;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -18,6 +20,10 @@ fn main() {
         let encoded_value = &args[2];
         let (decoded_value, _) = bencode::decode_bencoded_value(encoded_value);
         println!("{}", decoded_value.to_string());
+    } else if command == "info" {
+        let file_name = &args[2];
+        let info = info::get_info(file_name);
+        println!("{}", info.to_string());
     } else {
         println!("unknown command: {}", args[1])
     }

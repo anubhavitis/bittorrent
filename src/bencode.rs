@@ -1,6 +1,6 @@
 use serde_json::{self};
 
-fn decode_bencoded_string(encoded_value: &str) -> (serde_json::Value, usize) {
+pub fn decode_bencoded_string(encoded_value: &str) -> (serde_json::Value, usize) {
     let colon_index = encoded_value.find(':').unwrap();
     let length = encoded_value[..colon_index].parse::<usize>().unwrap();
     let string_start = colon_index + 1;
@@ -10,7 +10,7 @@ fn decode_bencoded_string(encoded_value: &str) -> (serde_json::Value, usize) {
     (serde_json::Value::String(string.to_string()), string_end)
 }
 
-fn decode_bencoded_number(encoded_value: &str) -> (serde_json::Value, usize) {
+pub fn decode_bencoded_number(encoded_value: &str) -> (serde_json::Value, usize) {
     // Format: i<number>e
     let e_index = encoded_value.find('e').unwrap();
     let number_string = &encoded_value[1..e_index]; // Skip the 'i' prefix
@@ -19,7 +19,7 @@ fn decode_bencoded_number(encoded_value: &str) -> (serde_json::Value, usize) {
     (serde_json::Value::Number(number.into()), e_index + 1)
 }
 
-fn decode_bencoded_list(encoded_value: &str) -> (serde_json::Value, usize) {
+pub fn decode_bencoded_list(encoded_value: &str) -> (serde_json::Value, usize) {
     // Format: l<contents>e
     let mut current_index = 1; // Skip the 'l' prefix
     let mut values = Vec::new();
@@ -32,7 +32,7 @@ fn decode_bencoded_list(encoded_value: &str) -> (serde_json::Value, usize) {
 
     (serde_json::Value::Array(values), current_index + 1) // +1 for the 'e' suffix
 }
-fn decode_bencoded_dict(encoded_value: &str) -> (serde_json::Value, usize) {
+pub fn decode_bencoded_dict(encoded_value: &str) -> (serde_json::Value, usize) {
     // Format: d<contents>e
     let mut current_index = 1; // Skip the 'd' prefix
     let mut map = serde_json::Map::new();
