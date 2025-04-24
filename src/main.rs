@@ -1,5 +1,4 @@
-use serde_json;
-use std::collections::HashMap;
+use serde_json::{self, json};
 use std::env;
 
 fn decode_bencoded_string(encoded_value: &str) -> (serde_json::Value, usize) {
@@ -38,24 +37,23 @@ fn decode_bencoded_list(encoded_value: &str) -> (serde_json::Value, usize) {
 fn decode_bencoded_dict(encoded_value: &str) -> (serde_json::Value, usize) {
     // Format: d<contents>e
     let mut current_index = 1; // Skip the 'd' prefix
-    let mut dict_values = HashMap::new();
+    let mut key_values = vec![];
 
     while encoded_value.chars().nth(current_index).unwrap() != 'e' {
         let (key, key_len) = decode_bencoded_string(&encoded_value[current_index..]);
         let (value, value_len) = decode_bencoded_value(&encoded_value[current_index + key_len..]);
-        dict_values.insert(key, value);
+        key_values.push(format!("{}: {}", key, value));
         current_index += key_len + value_len;
     }
 
-    (
-        serde_json::Value::Object(
-            dict_values
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v))
-                .collect(),
-        ),
-        current_index + 1,
-    ) // +1 for the 'e' suffix
+    let json_string = format!("{{{}}}", key_values.join(","));
+    let dict_elem = serde_json::from_str::<serde_json::Value>(&json_string).unwrap();
+
+    eprintln!("dict_values: {:?}", dict_elem);
+    let resp = serde_json::Value::Object(dict_elem.as_object().unwrap().clone());
+    eprintln!(" resp {}", resp);
+
+    (resp, current_index + 1) // +1 for the 'e' suffix
 }
 
 #[allow(dead_code)]
