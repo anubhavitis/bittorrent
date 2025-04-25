@@ -1,38 +1,24 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 
-use serde::Deserialize;
-use serde_bencode::from_bytes;
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Torrent {
     announce: String,
     info: Info,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Info {
     name: String,
     length: i64,
-    pieces: Vec<u8>,
+    pieces: ByteBuf,
+    #[serde(rename = "piece length")]
     piece_length: i64,
 }
 
-pub fn get_info(file_name: &str) -> serde_json::Value {
-    let file = File::open(file_name).unwrap();
-    let mut reader = BufReader::new(file);
-    let mut file_bytes = Vec::new();
-    reader.read_to_end(&mut file_bytes).unwrap();
-
-    let torrent: Torrent = from_bytes(&file_bytes).unwrap();
-    eprintln!("{:?}", torrent);
-    eprintln!("Tracker URL: {}", torrent.announce);
-    eprintln!("Info: {:?}", torrent.info);
-
-    serde_json::json!({
-        "Tracker URL": torrent.announce,
-        "Length": torrent.info.length,
-    })
+pub fn get_info(file_name: &std::path::PathBuf) {
+    let file = std::fs::read(file_name).expect("Failed to read the file");
+    let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
+    println!("Tracker URL: {}", torrent.announce);
+    println!("Length: {}", torrent.info.length);
 }

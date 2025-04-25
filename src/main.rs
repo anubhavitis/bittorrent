@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::PathBuf};
 
 mod bencode;
 mod info;
@@ -21,9 +21,8 @@ fn main() {
         let (decoded_value, _) = bencode::decode_bencoded_value(encoded_value);
         println!("{}", decoded_value.to_string());
     } else if command == "info" {
-        let file_name = &args[2];
-        let info = info::get_info(file_name);
-        println!("{}", info.to_string());
+        let file_name = PathBuf::from(&args[2]);
+        info::get_info(&file_name);
     } else {
         println!("unknown command: {}", args[1])
     }
