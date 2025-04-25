@@ -37,6 +37,8 @@ pub fn get_info(file_name: &std::path::PathBuf) {
     }
 }
 
+pub fn peers(file_name: &std::path::PathBuf) {}
+
 fn get_piece_hashes(pieces: &ByteBuf) -> Vec<String> {
     let mut hashes = Vec::new();
     for i in 0..pieces.len() / 20 {
