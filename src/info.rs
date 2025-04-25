@@ -1,3 +1,8 @@
+use std::{io::Read, time::Duration};
+
+use bytes::Bytes;
+use rand::prelude::*;
+use reqwest::header::USER_AGENT;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
@@ -17,17 +22,21 @@ struct Info {
     piece_length: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct TrackerResponse {
+    interval: i64,
+    peers: ByteBuf,
+}
+
 pub fn get_info(file_name: &std::path::PathBuf) {
     let file = std::fs::read(file_name).expect("Failed to read the file");
     let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
     println!("Tracker URL: {}", torrent.announce);
     println!("Length: {}", torrent.info.length);
 
-    let mut hasher = Sha1::new();
-    let info_bytes = serde_bencode::to_bytes(&torrent.info).unwrap();
-    hasher.update(&info_bytes);
-    let hash = hasher.finalize();
-    println!("Info Hash: {}", hex::encode(hash));
+    let info_hash = get_info_hash(&torrent.info);
+    let info_hash_str = hex::encode(info_hash);
+    println!("Info Hash: {}", info_hash_str);
 
     println!("Piece Length: {}", torrent.info.piece_length);
     println!("Piece Hashes:");
@@ -37,7 +46,65 @@ pub fn get_info(file_name: &std::path::PathBuf) {
     }
 }
 
-pub fn peers(file_name: &std::path::PathBuf) {}
+pub async fn peers(file_name: &std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let file = std::fs::read(file_name).expect("Failed to read the file");
+    let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
+
+    let hash = get_info_hash(&torrent.info);
+    let url_encoded_info_hash = urlencoding::encode_binary(&hash).to_string();
+
+    let url_params = serde_json::json!({
+        "peer_id": "00112233445566778899",
+        "port": 6881,
+        "uploaded": 1,
+        "downloaded": 1,
+        "left": torrent.info.length,
+        "compact": 1
+    });
+
+    let encoded_url_params = serde_urlencoded::to_string(&url_params).unwrap();
+
+    let url = format!(
+        "{}?{}&info_hash={}",
+        torrent.announce, encoded_url_params, url_encoded_info_hash
+    );
+
+    let traker_response = reqwest::get(url.as_str()).await.unwrap();
+    let traker_response_bytes = traker_response.bytes().await.unwrap();
+    let tracker_repsonse: TrackerResponse =
+        serde_bencode::from_bytes(&traker_response_bytes).unwrap();
+
+    let mut i = 0;
+    while i < tracker_repsonse.peers.len() {
+        let peer = tracker_repsonse.peers[i..i + 6].to_vec();
+        let ip = peer[..4]
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<String>>()
+            .join(".");
+        let port = u16::from_be_bytes(peer[4..6].try_into().unwrap());
+        println!("{}:{}", ip, port);
+        i += 6;
+    }
+
+    Ok(())
+}
+
+fn get_info_hash(info: &Info) -> Vec<u8> {
+    let mut hasher = Sha1::new();
+    let info_bytes = serde_bencode::to_bytes(info).unwrap();
+    hasher.update(&info_bytes);
+    let hash = hasher.finalize();
+    hash.to_vec()
+}
+
+// fn get_peer_id() -> String {
+//     let mut rng = rand::thread_rng();
+//     let bytes: [u8; 20] = rng.gen();
+//     let resp = hex::encode(bytes)[..20].to_string();
+//     eprintln!("Peer ID: {} and length {}", resp, resp.len());
+//     resp
+// }
 
 fn get_piece_hashes(pieces: &ByteBuf) -> Vec<String> {
     let mut hashes = Vec::new();

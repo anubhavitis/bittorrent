@@ -18,7 +18,8 @@ enum Command {
     Peers { file_name: PathBuf },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
     match args.command {
         Command::Decode { encoded_value } => {
@@ -26,6 +27,8 @@ fn main() {
             println!("{}", decoded_value.to_string());
         }
         Command::Info { file_name } => info::get_info(&file_name),
-        Command::Peers { file_name } => info::peers(&file_name),
+        Command::Peers { file_name } => {
+            let _ = info::peers(&file_name).await;
+        }
     }
 }
