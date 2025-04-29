@@ -13,8 +13,11 @@ pub fn get_info(file_name: &std::path::PathBuf) {
     let torrent = Torrent::new(file_name);
     let info_hash = torrent.get_info_hash();
     let info_hash_str = hex::encode(info_hash);
-    println!("Info Hash: {}", info_hash_str);
+    let tracker_url = torrent.announce;
 
+    println!("Tracker URL: {}", tracker_url);
+    println!("Length: {}", torrent.info.length);
+    println!("Info Hash: {}", info_hash_str);
     println!("Piece Length: {}", torrent.info.piece_length);
     println!("Piece Hashes:");
     let hashes = get_piece_hashes(&torrent.info.pieces);
