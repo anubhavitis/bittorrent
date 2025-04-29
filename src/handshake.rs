@@ -6,6 +6,7 @@ use std::{
 
 use crate::torrent::Torrent;
 
+#[derive(Debug)]
 pub struct HandshakeMessage {
     pub length: u8,
     pub protocol: [u8; 19],
@@ -25,6 +26,16 @@ impl HandshakeMessage {
         }
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        HandshakeMessage {
+            length: bytes[0],
+            protocol: bytes[1..20].try_into().unwrap(),
+            reserved: bytes[20..28].try_into().unwrap(),
+            info_hash: bytes[28..48].try_into().unwrap(),
+            peer_id: bytes[48..68].try_into().unwrap(),
+        }
+    }
+
     pub fn to_bytes(&self) -> [u8; 68] {
         let mut bytes = [0u8; 68];
         bytes[0] = self.length;
@@ -38,7 +49,10 @@ impl HandshakeMessage {
 
 pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(file_name);
-    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let info_hash = torrent.get_info_hash();
+    let handshake_message = HandshakeMessage::new(info_hash);
+
+    eprintln!("Handshake message: {:?}", handshake_message);
 
     let mut tcp_stream = match TcpStream::connect(peer) {
         Ok(stream) => stream,
@@ -51,13 +65,12 @@ pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
         .write_all(&handshake_bytes)
         .expect("write handshake");
 
-    eprintln!("Reading handshake message from peer");
     let mut buffer = [0u8; 68];
     tcp_stream.read_exact(&mut buffer).unwrap();
+    // let response = HandshakeMessage::from_bytes(&buffer);
+
+    eprintln!("Peer Id: {}", hex::encode(handshake_message.peer_id));
 
     eprintln!("Shutting down TCP stream");
     tcp_stream.shutdown(Shutdown::Both).unwrap();
-
-    eprintln!("Peer Id: {}", hex::encode(&handshake_bytes[48..68]));
-    println!("Peer Id: {}", hex::encode(&buffer[48..68]));
 }
