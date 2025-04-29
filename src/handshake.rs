@@ -52,14 +52,11 @@ pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
     let info_hash = torrent.get_info_hash();
     let handshake_message = HandshakeMessage::new(info_hash);
 
-    eprintln!("Handshake message: {:?}", handshake_message);
-
     let mut tcp_stream = match TcpStream::connect(peer) {
         Ok(stream) => stream,
         Err(e) => panic!("Failed to connect to peer: {}", e),
     };
 
-    eprintln!("Writing handshake message to peer");
     let handshake_bytes = handshake_message.to_bytes();
     tcp_stream
         .write_all(&handshake_bytes)
@@ -67,9 +64,10 @@ pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
 
     let mut buffer = [0u8; 68];
     tcp_stream.read_exact(&mut buffer).unwrap();
-    // let response = HandshakeMessage::from_bytes(&buffer);
+    let response = HandshakeMessage::from_bytes(&buffer);
 
-    eprintln!("Peer Id: {}", hex::encode(handshake_message.peer_id));
+    eprintln!("Peer Id: {}", hex::encode(response.peer_id));
+    println!("Peer Id: {}", hex::encode(handshake_message.peer_id));
 
     eprintln!("Shutting down TCP stream");
     tcp_stream.shutdown(Shutdown::Both).unwrap();
