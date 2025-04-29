@@ -65,13 +65,7 @@ pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
     let mut buffer = [0u8; 68];
     tcp_stream.read_exact(&mut buffer).unwrap();
     let response = HandshakeMessage::from_bytes(&buffer);
+    println!("Peer ID: {}", hex::encode(response.peer_id));
 
-    eprintln!(
-        "handshake Peer Id: {}",
-        hex::encode(handshake_message.peer_id)
-    );
-    println!("Peer Id: {}", hex::encode(response.peer_id));
-
-    eprintln!("Shutting down TCP stream");
     tcp_stream.shutdown(Shutdown::Both).unwrap();
 }
