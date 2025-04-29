@@ -1,4 +1,5 @@
-pub mod bencode;
+pub mod download;
+pub mod handler;
 pub mod handshake;
-pub mod info;
 pub mod torrent;
+pub mod utils;

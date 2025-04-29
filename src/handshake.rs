@@ -1,10 +1,9 @@
 use std::{
     io::{Read, Write},
     net::{Shutdown, SocketAddr, TcpStream},
-    path::PathBuf,
 };
 
-use crate::torrent::Torrent;
+use crate::utils;
 
 #[derive(Debug)]
 pub struct HandshakeMessage {
@@ -17,12 +16,13 @@ pub struct HandshakeMessage {
 
 impl HandshakeMessage {
     pub fn new(info_hash: [u8; 20]) -> Self {
+        let peer_id = utils::generate_peer_id();
         HandshakeMessage {
             length: 19,
             protocol: *b"BitTorrent protocol",
             reserved: [0; 8],
             info_hash,
-            peer_id: *b"00110011001100110011",
+            peer_id: peer_id.as_bytes().try_into().unwrap(),
         }
     }
 
@@ -47,9 +47,7 @@ impl HandshakeMessage {
     }
 }
 
-pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
-    let torrent = Torrent::new(file_name);
-    let info_hash = torrent.get_info_hash();
+pub async fn handshake(info_hash: [u8; 20], peer: SocketAddr) {
     let handshake_message = HandshakeMessage::new(info_hash);
 
     let mut tcp_stream = match TcpStream::connect(peer) {

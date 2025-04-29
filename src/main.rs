@@ -1,8 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::{net::SocketAddr, path::PathBuf};
 
-use codecrafters_bittorrent::{bencode, handshake, info};
-
+use codecrafters_bittorrent::handler;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -16,14 +15,21 @@ enum Command {
         encoded_value: String,
     },
     Info {
-        file_name: PathBuf,
+        torrent: PathBuf,
     },
     Peers {
-        file_name: PathBuf,
+        torrent: PathBuf,
     },
     Handshake {
-        file_name: PathBuf,
+        torrent: PathBuf,
         peer: SocketAddr,
+    },
+    #[command(name = "download_piece")]
+    DownloadPiece {
+        #[arg(short = 'o')]
+        save_path: PathBuf,
+        torrent: PathBuf,
+        piece_index: u32,
     },
 }
 
@@ -31,14 +37,14 @@ enum Command {
 async fn main() {
     let args = Args::parse();
     match args.command {
-        Command::Decode { encoded_value } => {
-            let (decoded_value, _) = bencode::decode_bencoded_value(encoded_value.as_str());
-            println!("{}", decoded_value.to_string());
-        }
-        Command::Info { file_name } => info::get_info(&file_name),
-        Command::Peers { file_name } => {
-            let _ = info::peers(&file_name).await;
-        }
-        Command::Handshake { file_name, peer } => handshake::handshake(&file_name, peer).await,
+        Command::Decode { encoded_value } => handler::decode_bencoded_value(encoded_value.as_str()),
+        Command::Info { torrent } => handler::get_info(&torrent),
+        Command::Peers { torrent } => handler::peers(&torrent).await,
+        Command::Handshake { torrent, peer } => handler::handshake_handler(torrent, peer).await,
+        Command::DownloadPiece {
+            save_path,
+            torrent,
+            piece_index,
+        } => handler::download_piece_handler(save_path, torrent, piece_index).await,
     }
 }

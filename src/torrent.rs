@@ -1,7 +1,9 @@
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+use crate::utils;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Torrent {
     pub announce: String,
@@ -17,6 +19,12 @@ pub struct Info {
     pub piece_length: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct TrackerResponse {
+    interval: i64,
+    peers: ByteBuf,
+}
+
 impl Torrent {
     pub fn new(file_name: &std::path::PathBuf) -> Self {
         let file = std::fs::read(file_name).expect("Failed to read the file");
@@ -30,5 +38,48 @@ impl Torrent {
         hasher.update(&info_bytes);
         let hash = hasher.finalize();
         hash.try_into().expect("Failed to convert hash to array")
+    }
+
+    pub async fn get_peers(&self) -> Result<Vec<SocketAddr>, Box<dyn std::error::Error>> {
+        let info_hash = self.get_info_hash();
+        let url_encoded_info_hash = urlencoding::encode_binary(&info_hash).to_string();
+
+        let peer_id = utils::generate_peer_id();
+        let url_params = serde_json::json!({
+            "peer_id": peer_id,
+            "port": 6881,
+            "uploaded": 1,
+            "downloaded": 1,
+            "left": self.info.length,
+            "compact": 1
+        });
+
+        let encoded_url_params = serde_urlencoded::to_string(&url_params)?;
+
+        let url = format!(
+            "{}?{}&info_hash={}",
+            self.announce, encoded_url_params, url_encoded_info_hash
+        );
+
+        // Send request to tracker and parse response
+        let tracker_response = reqwest::get(url.as_str()).await?;
+        let tracker_response_bytes = tracker_response.bytes().await?;
+        let tracker_response: TrackerResponse = serde_bencode::from_bytes(&tracker_response_bytes)?;
+
+        let mut peers = Vec::new();
+        let mut i = 0;
+        while i < tracker_response.peers.len() {
+            if i + 6 <= tracker_response.peers.len() {
+                let peer = &tracker_response.peers[i..i + 6];
+                let formatted_peer = SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(peer[0], peer[1], peer[2], peer[3])),
+                    u16::from_be_bytes([peer[4], peer[5]]),
+                );
+                peers.push(formatted_peer);
+            }
+            i += 6;
+        }
+
+        Ok(peers)
     }
 }
