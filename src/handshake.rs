@@ -22,7 +22,7 @@ impl HandshakeMessage {
             protocol: *b"BitTorrent protocol",
             reserved: [0; 8],
             info_hash,
-            peer_id: *b"00112233445566778899",
+            peer_id: *b"00110011001100110011",
         }
     }
 
@@ -66,8 +66,11 @@ pub async fn handshake(file_name: &PathBuf, peer: SocketAddr) {
     tcp_stream.read_exact(&mut buffer).unwrap();
     let response = HandshakeMessage::from_bytes(&buffer);
 
-    eprintln!("Peer Id: {}", hex::encode(response.peer_id));
-    println!("Peer Id: {}", hex::encode(handshake_message.peer_id));
+    eprintln!(
+        "handshake Peer Id: {}",
+        hex::encode(handshake_message.peer_id)
+    );
+    println!("Peer Id: {}", hex::encode(response.peer_id));
 
     eprintln!("Shutting down TCP stream");
     tcp_stream.shutdown(Shutdown::Both).unwrap();
