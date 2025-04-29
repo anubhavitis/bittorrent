@@ -1,26 +1,7 @@
-use std::{io::Read, time::Duration};
-
-use bytes::Bytes;
-use rand::prelude::*;
-use reqwest::header::USER_AGENT;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
-use sha1::{Digest, Sha1};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Torrent {
-    announce: String,
-    info: Info,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Info {
-    name: String,
-    length: i64,
-    pieces: ByteBuf,
-    #[serde(rename = "piece length")]
-    piece_length: i64,
-}
+use crate::torrent::Torrent;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
@@ -29,12 +10,8 @@ struct TrackerResponse {
 }
 
 pub fn get_info(file_name: &std::path::PathBuf) {
-    let file = std::fs::read(file_name).expect("Failed to read the file");
-    let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
-    println!("Tracker URL: {}", torrent.announce);
-    println!("Length: {}", torrent.info.length);
-
-    let info_hash = get_info_hash(&torrent.info);
+    let torrent = Torrent::new(file_name);
+    let info_hash = torrent.get_info_hash();
     let info_hash_str = hex::encode(info_hash);
     println!("Info Hash: {}", info_hash_str);
 
@@ -47,13 +24,9 @@ pub fn get_info(file_name: &std::path::PathBuf) {
 }
 
 pub async fn peers(file_name: &std::path::PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    // Read and parse the torrent file
-    let file = std::fs::read(file_name)?;
-    let torrent: Torrent = serde_bencode::from_bytes(&file)?;
-
-    // Prepare tracker request parameters
-    let hash = get_info_hash(&torrent.info);
-    let url_encoded_info_hash = urlencoding::encode_binary(&hash).to_string();
+    let torrent = Torrent::new(file_name);
+    let info_hash = torrent.get_info_hash();
+    let url_encoded_info_hash = urlencoding::encode_binary(&info_hash).to_string();
 
     let peer_id = generate_peer_id();
     let url_params = build_tracker_params(peer_id, torrent.info.length);
@@ -96,24 +69,21 @@ fn display_peers(peers_data: &ByteBuf) {
     while i < peers_data.len() {
         if i + 6 <= peers_data.len() {
             let peer = &peers_data[i..i + 6];
-            let ip = peer[..4]
-                .iter()
-                .map(|b| b.to_string())
-                .collect::<Vec<String>>()
-                .join(".");
-            let port = u16::from_be_bytes(peer[4..6].try_into().unwrap());
-            println!("{}:{}", ip, port);
+            let formatted_peer = formatter_peer(peer);
+            println!("{}", formatted_peer);
         }
         i += 6;
     }
 }
 
-fn get_info_hash(info: &Info) -> Vec<u8> {
-    let mut hasher = Sha1::new();
-    let info_bytes = serde_bencode::to_bytes(info).unwrap();
-    hasher.update(&info_bytes);
-    let hash = hasher.finalize();
-    hash.to_vec()
+pub fn formatter_peer(peer: &[u8]) -> String {
+    let ip = peer[..4]
+        .iter()
+        .map(|b| b.to_string())
+        .collect::<Vec<String>>()
+        .join(".");
+    let port = u16::from_be_bytes(peer[4..6].try_into().unwrap());
+    format!("{}:{}", ip, port)
 }
 
 fn get_piece_hashes(pieces: &ByteBuf) -> Vec<String> {

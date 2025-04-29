@@ -1,8 +1,7 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{net::SocketAddr, path::PathBuf};
 
-mod bencode;
-mod info;
+use codecrafters_bittorrent::{bencode, handshake, info};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,9 +12,19 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    Decode { encoded_value: String },
-    Info { file_name: PathBuf },
-    Peers { file_name: PathBuf },
+    Decode {
+        encoded_value: String,
+    },
+    Info {
+        file_name: PathBuf,
+    },
+    Peers {
+        file_name: PathBuf,
+    },
+    Handshake {
+        file_name: PathBuf,
+        peer: SocketAddr,
+    },
 }
 
 #[tokio::main]
@@ -30,5 +39,6 @@ async fn main() {
         Command::Peers { file_name } => {
             let _ = info::peers(&file_name).await;
         }
+        Command::Handshake { file_name, peer } => handshake::handshake(&file_name, peer).await,
     }
 }
