@@ -1,9 +1,9 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 use crate::utils;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Torrent {
     pub announce: String,
@@ -26,7 +26,7 @@ struct TrackerResponse {
 }
 
 impl Torrent {
-    pub fn new(file_name: &std::path::PathBuf) -> Self {
+    pub fn new(file_name: &PathBuf) -> Self {
         let file = std::fs::read(file_name).expect("Failed to read the file");
         let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
         torrent
@@ -81,5 +81,15 @@ impl Torrent {
         }
 
         Ok(peers)
+    }
+
+    pub fn get_piece_hashes(&self) -> Vec<String> {
+        let mut hashes = Vec::new();
+        for i in 0..self.info.pieces.len() / 20 {
+            let hash = self.info.pieces[i * 20..(i + 1) * 20].to_vec();
+            hashes.push(hex::encode(hash));
+        }
+
+        hashes
     }
 }

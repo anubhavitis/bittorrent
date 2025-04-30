@@ -1,11 +1,6 @@
-use std::{
-    io::{Read, Write},
-    net::{Shutdown, SocketAddr, TcpStream},
-};
-
 use crate::utils;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HandshakeMessage {
     pub length: u8,
     pub protocol: [u8; 19],
@@ -45,25 +40,4 @@ impl HandshakeMessage {
         bytes[48..68].copy_from_slice(&self.peer_id);
         bytes
     }
-}
-
-pub async fn handshake(info_hash: [u8; 20], peer: SocketAddr) {
-    let handshake_message = HandshakeMessage::new(info_hash);
-
-    let mut tcp_stream = match TcpStream::connect(peer) {
-        Ok(stream) => stream,
-        Err(e) => panic!("Failed to connect to peer: {}", e),
-    };
-
-    let handshake_bytes = handshake_message.to_bytes();
-    tcp_stream
-        .write_all(&handshake_bytes)
-        .expect("write handshake");
-
-    let mut buffer = [0u8; 68];
-    tcp_stream.read_exact(&mut buffer).unwrap();
-    let response = HandshakeMessage::from_bytes(&buffer);
-    println!("Peer ID: {}", hex::encode(response.peer_id));
-
-    tcp_stream.shutdown(Shutdown::Both).unwrap();
 }

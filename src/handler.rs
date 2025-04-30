@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use crate::{download::download_piece, handshake::handshake, torrent::Torrent};
+use crate::{client::Client, handshake::HandshakeMessage, torrent::Torrent};
 use serde_bytes::ByteBuf;
 use serde_json::Number;
 
@@ -30,14 +30,14 @@ pub fn get_info(file_name: &std::path::PathBuf) {
     let torrent = Torrent::new(file_name);
     let info_hash = torrent.get_info_hash();
     let info_hash_str = hex::encode(info_hash);
-    let tracker_url = torrent.announce;
+    let tracker_url = torrent.announce.clone();
+    let hashes = torrent.get_piece_hashes();
 
     println!("Tracker URL: {}", tracker_url);
     println!("Length: {}", torrent.info.length);
     println!("Info Hash: {}", info_hash_str);
     println!("Piece Length: {}", torrent.info.piece_length);
     println!("Piece Hashes:");
-    let hashes = get_piece_hashes(&torrent.info.pieces);
     for hash in hashes {
         println!("{}", hash);
     }
@@ -60,20 +60,29 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(&torrent);
-    let info_hash = torrent.get_info_hash();
-    handshake(info_hash, peer).await;
+    let mut client = Client::new(torrent);
+    client.handshake(peer).await;
 }
 
 pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
-    download_piece(save_path, torrent, piece_index);
-}
+    eprintln!("Downloading piece: {} {}", piece_index, save_path.display());
+    let torrent = Torrent::new(&torrent);
+    let peers = torrent.get_peers().await.expect("Failed to get peers");
+    eprintln!("Peers: {:?}", peers);
+    // let mut handles = vec![];
+    // for peer in peers {
+    //     let mut client = Client::new();
+    //     let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    //     let handle = tokio::spawn(async move {
+    //         client.handle_peer(handshake_message.clone(), peer).await;
+    //     });
+    //     handles.push(handle);
+    // }
 
-fn get_piece_hashes(pieces: &ByteBuf) -> Vec<String> {
-    let mut hashes = Vec::new();
-    for i in 0..pieces.len() / 20 {
-        let hash = pieces[i * 20..(i + 1) * 20].to_vec();
-        hashes.push(hex::encode(hash));
-    }
+    // for handle in handles {
+    //     handle.await.unwrap();
+    // }
 
-    hashes
+    let mut client = Client::new(torrent);
+    client.handle_peer(peers[0], &save_path, piece_index).await;
 }
