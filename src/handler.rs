@@ -1,7 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use crate::{client::Client, handshake::HandshakeMessage, torrent::Torrent};
-use serde_bytes::ByteBuf;
+use crate::{client::Client, torrent::Torrent};
 use serde_json::Number;
 
 fn jsonify(value: &serde_bencode::value::Value) -> serde_json::Value {
@@ -60,8 +59,9 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(&torrent);
-    let mut client = Client::new(torrent);
-    client.handshake(peer).await;
+    let mut client = Client::new(torrent, peer).await;
+    let peer_id = client.handshake().await;
+    println!("Peer ID: {}", peer_id);
 }
 
 pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
@@ -83,6 +83,6 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     //     handle.await.unwrap();
     // }
 
-    let mut client = Client::new(torrent);
-    client.handle_peer(peers[0], &save_path, piece_index).await;
+    let mut client = Client::new(torrent, peers[0]).await;
+    client.handle_peer(&save_path, piece_index).await;
 }
