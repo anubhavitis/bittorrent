@@ -4,215 +4,311 @@ use crate::torrent::Torrent;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+#[derive(Debug, Error)]
+pub enum ClientError {
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+
+    #[error("Failed to connect to peer: {0}")]
+    ConnectionFailed(String),
+
+    #[error("Failed to read message: {0}")]
+    ReadError(String),
+
+    #[error("Failed to write message: {0}")]
+    WriteError(String),
+
+    #[error("Invalid message format: {0}")]
+    InvalidMessage(String),
+
+    #[error("File operation failed: {0}")]
+    FileError(String),
+}
+
+type Result<T> = std::result::Result<T, ClientError>;
+
 pub struct Client {
     torrent: Torrent,
-    handshake_message: HandshakeMessage,
     tcp_stream: TcpStream,
     fetched_data: Vec<u8>,
     current_piece_index: usize,
-    piece_length: Vec<u32>,
+    piece_lengths: Vec<u32>,
     reading_length: u32,
     ready_to_request: bool,
 }
 
 impl Client {
-    pub async fn new(torrent: Torrent, peer: SocketAddr) -> Self {
-        let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    pub async fn new(torrent: Torrent, peer: SocketAddr) -> Result<Self> {
         let tcp_stream = TcpStream::connect(peer)
             .await
-            .expect("Failed to connect to peer");
+            .map_err(|e| ClientError::ConnectionFailed(e.to_string()))?;
 
-        let mut total_length = torrent.info.length;
-        let mut piece_length = vec![];
-        while total_length > 0 {
-            piece_length.push(min(total_length, torrent.info.piece_length));
-            total_length -= piece_length.last().unwrap();
+        // Calculate piece lengths
+        let mut piece_lengths = vec![];
+        let mut remaining_length = torrent.info.length;
+
+        while remaining_length > 0 {
+            let piece_size = min(remaining_length, torrent.info.piece_length);
+            piece_lengths.push(piece_size);
+            remaining_length -= piece_size;
         }
 
-        eprintln!("Piece length: {:?}", piece_length);
-
-        Self {
+        Ok(Self {
             torrent,
-            handshake_message,
             tcp_stream,
             fetched_data: vec![],
             current_piece_index: 0,
-            piece_length: piece_length,
-            reading_length: 1 << 14,
+            piece_lengths,
+            reading_length: 1 << 14, // 16KB chunks
             ready_to_request: false,
-        }
+        })
     }
 
-    pub async fn read_message(&mut self) -> Vec<u8> {
+    async fn read_message(&mut self) -> Result<Vec<u8>> {
         eprintln!("\n\nReading message");
+
+        // Read message length (4 bytes)
         let mut length_buffer = [0u8; 4];
         self.tcp_stream
             .read_exact(&mut length_buffer)
             .await
-            .expect("Failed to read message length");
+            .map_err(|e| ClientError::ReadError(format!("Failed to read message length: {}", e)))?;
+
         let length = u32::from_be_bytes(length_buffer);
 
+        // Handle keep-alive message (length = 0)
         if length == 0 {
-            eprintln!("Message length is 0, length buffer: {:?}", length_buffer);
-            return vec![];
+            eprintln!("Received keep-alive message (length=0)");
+            return Ok(vec![]);
         }
 
-        eprintln!("length buffer: {:?}", length_buffer);
         eprintln!("Reading message of length: {}", length);
+
+        // Read message content
         let mut message_buffer = vec![0u8; length as usize];
         self.tcp_stream
             .read_exact(&mut message_buffer)
             .await
-            .expect("Failed to read message");
-        message_buffer
+            .map_err(|e| {
+                ClientError::ReadError(format!("Failed to read message content: {}", e))
+            })?;
+
+        Ok(message_buffer)
     }
 
-    pub async fn handshake(&mut self) -> String {
-        let handshake_bytes = self.handshake_message.to_bytes();
+    pub async fn handshake(&mut self, handshake_message: HandshakeMessage) -> Result<String> {
+        let handshake_bytes = handshake_message.to_bytes();
+
+        // Send handshake
         self.tcp_stream
             .write_all(&handshake_bytes)
             .await
-            .expect("write handshake");
+            .map_err(|e| ClientError::WriteError(format!("Failed to send handshake: {}", e)))?;
+
+        // Read handshake response
         let mut buffer = [0u8; 68];
-        self.tcp_stream
-            .read_exact(&mut buffer)
-            .await
-            .expect("read handshake");
+        self.tcp_stream.read_exact(&mut buffer).await.map_err(|e| {
+            ClientError::ReadError(format!("Failed to read handshake response: {}", e))
+        })?;
+
         let response = HandshakeMessage::from_bytes(&buffer);
-        hex::encode(response.peer_id)
+        Ok(hex::encode(response.peer_id))
     }
 
-    pub async fn send_cancel_message(&mut self) {
+    pub async fn send_cancel_message(&mut self) -> Result<()> {
         eprintln!("Sending Cancel message");
         let cancel_message = PeerMessage::new(MessageId::Cancel, vec![]);
         let cancel_bytes = cancel_message.to_bytes();
+
         self.tcp_stream
             .write_all(&cancel_bytes)
             .await
-            .expect("Failed to send Cancel message");
+            .map_err(|e| {
+                ClientError::WriteError(format!("Failed to send Cancel message: {}", e))
+            })?;
+
+        Ok(())
     }
 
-    pub async fn send_interested_message(&mut self) {
+    async fn send_interested_message(&mut self) -> Result<()> {
         eprintln!("Sending Interested message");
         let interested_message = PeerMessage::new(MessageId::Interested, vec![]);
         let interested_bytes = interested_message.to_bytes();
+
         self.tcp_stream
             .write_all(&interested_bytes)
             .await
-            .expect("Failed to send Interested message");
+            .map_err(|e| {
+                ClientError::WriteError(format!("Failed to send Interested message: {}", e))
+            })?;
+
+        Ok(())
     }
 
-    pub async fn send_request_message(&mut self, piece_index: usize, begin: u32, length: u32) {
-        eprintln!(
-            "\n\nSending Request message for piece: {}, begin: {}, length: {}",
-            piece_index, begin, length
-        );
+    async fn send_request_message(
+        &mut self,
+        piece_index: usize,
+        begin: u32,
+        length: u32,
+    ) -> Result<()> {
+        dbg!(piece_index, begin, length);
         let payload = RequestPayload::new(piece_index as u32, begin, length);
         let request_message = PeerMessage::new(MessageId::Request, payload.to_bytes());
-        eprintln!("Request message: {:?}", request_message);
         let request_bytes = request_message.to_bytes();
-        eprintln!("Request bytes: {:?}", request_bytes);
+
         self.tcp_stream
             .write_all(&request_bytes)
             .await
-            .expect("Failed to send Request message");
+            .map_err(|e| {
+                ClientError::WriteError(format!("Failed to send Request message: {}", e))
+            })?;
+
+        Ok(())
     }
 
-    pub async fn cmp_piece_hash(&self) -> bool {
+    pub fn cmp_piece_hash(&self) -> bool {
         let piece_hashes = self.torrent.get_piece_hashes();
-        let piece_hash = piece_hashes[self.current_piece_index as usize].clone();
-        let mut file_hash = Sha1::new();
-        file_hash.update(self.fetched_data.as_slice());
-        let file_hash = file_hash.finalize();
-        let file_hash_str = hex::encode(file_hash);
+        let piece_hash = &piece_hashes[self.current_piece_index];
 
-        piece_hash == file_hash_str
+        let mut hasher = Sha1::new();
+        hasher.update(&self.fetched_data);
+        let computed_hash = hasher.finalize();
+        let computed_hash_str = hex::encode(computed_hash);
+
+        piece_hash == &computed_hash_str
     }
 
     pub fn get_fetched_data(&self) -> &[u8] {
-        self.fetched_data.as_slice()
+        &self.fetched_data
     }
 
-    pub async fn create_file(&self, save_path: &PathBuf, data: &[u8]) {
-        let mut file = File::create(save_path).expect("Failed to create file");
-        file.write_all(data).expect("Failed to write file");
-        file.flush().expect("Failed to flush file");
+    pub async fn create_file(&self, save_path: &PathBuf, data: &[u8]) -> Result<()> {
+        let mut file = File::create(save_path)
+            .map_err(|e| ClientError::FileError(format!("Failed to create file: {}", e)))?;
+
+        file.write_all(data)
+            .map_err(|e| ClientError::FileError(format!("Failed to write data: {}", e)))?;
+
+        file.flush()
+            .map_err(|e| ClientError::FileError(format!("Failed to flush file: {}", e)))?;
+
+        Ok(())
     }
 
-    pub async fn message_handler(&mut self) {
+    async fn message_handler(&mut self) -> Result<()> {
         loop {
-            let message_buffer = self.read_message().await;
+            let message_buffer = self.read_message().await?;
+
+            // Handle keep-alive message
+            if message_buffer.is_empty() {
+                continue;
+            }
+
             let message_id = message_buffer[0];
             match MessageId::from(message_id) {
-                MessageId::Choke => eprintln!("Received Choke message"),
+                MessageId::Choke => {
+                    eprintln!("Received Choke message");
+                }
                 MessageId::Unchoke => {
                     eprintln!("Received Unchoke message");
                     self.ready_to_request = true;
                     break;
                 }
-                MessageId::Interested => eprintln!("Received Interested message"),
-                MessageId::NotInterested => eprintln!("Received NotInterested message"),
-                MessageId::Have => eprintln!("Received Have message"),
+                MessageId::Interested => {
+                    eprintln!("Received Interested message");
+                }
+                MessageId::NotInterested => {
+                    eprintln!("Received NotInterested message");
+                }
+                MessageId::Have => {
+                    eprintln!("Received Have message");
+                }
                 MessageId::Bitfield => {
                     eprintln!("Received Bitfield message");
-                    self.send_interested_message().await;
+                    self.send_interested_message().await?;
                 }
-                MessageId::Request => eprintln!("Received Request message"),
+                MessageId::Request => {
+                    eprintln!("Received Request message");
+                }
                 MessageId::Piece => {
+                    // Process piece data
                     let fetched_piece = PeerMessage::from_bytes(&message_buffer);
                     let fetched_piece_payload = PiecePayload::from_bytes(&fetched_piece.payload);
+
+                    // Append received block to our data
                     self.fetched_data
                         .extend_from_slice(&fetched_piece_payload.block);
 
+                    // Calculate next request parameters
                     let next_begin =
                         fetched_piece_payload.begin + fetched_piece_payload.block.len() as u32;
                     let next_len = min(
                         self.reading_length,
-                        self.piece_length[self.current_piece_index] - next_begin,
+                        self.piece_lengths[self.current_piece_index] - next_begin,
                     );
 
-                    eprintln!("next_begin: {}, next_len: {}", next_begin, next_len);
+                    dbg!(next_begin, next_len);
+
+                    // If no more data to fetch for this piece, return
                     if next_len == 0 {
-                        // No more data to fetch
-                        eprintln!("No more data to fetch");
-                        return;
+                        eprintln!("No more data to fetch for this piece");
+                        return Ok(());
                     }
 
+                    // Request next block
                     self.send_request_message(self.current_piece_index, next_begin, next_len)
-                        .await;
-
-                    eprintln!("Request message sent");
+                        .await?;
+                    eprintln!("Request message sent for next block");
                 }
-                MessageId::Cancel => eprintln!("Received Cancel message"),
+                MessageId::Cancel => {
+                    eprintln!("Received Cancel message");
+                }
             }
         }
+
+        Ok(())
     }
 
-    pub async fn download_piece(&mut self, piece_index: usize) {
+    pub async fn download_piece(&mut self, piece_index: usize) -> Result<()> {
+        // Handle initial message exchange if not ready
         if !self.ready_to_request {
             eprintln!("Executing pre-request handler");
-            self.message_handler().await;
+            self.message_handler().await?;
             eprintln!("Pre-request handler done");
         }
 
+        // Clear any previously fetched data
         self.fetched_data.clear();
+
+        // eprintln!(
+        //     "\n\n#############################\nDownloading piece: {}\n#############################\n\n",
+        //     piece_index
+        // );
+
+        // Set current piece and calculate initial request size
+        self.current_piece_index = piece_index;
+        let reading_length = min(self.reading_length, self.piece_lengths[piece_index]);
+
+        // Request first block of the piece
+        self.send_request_message(piece_index, 0, reading_length)
+            .await?;
+
+        // Handle messages until piece is complete
+        self.message_handler().await?;
+
         eprintln!(
-            "\n\n#############################\nDownloading piece: {}\n#############################\n\n",
+            "Downloaded {} bytes for piece {}",
+            self.fetched_data.len(),
             piece_index
         );
 
-        self.current_piece_index = piece_index;
-        let reading_length = min(self.reading_length, self.piece_length[piece_index]);
-        self.send_request_message(piece_index, 0, reading_length)
-            .await;
-        self.message_handler().await;
-
-        eprintln!("Read {} bytes", self.fetched_data.len());
+        Ok(())
     }
 }

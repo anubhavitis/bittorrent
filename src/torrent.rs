@@ -4,13 +4,13 @@ use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Torrent {
     pub announce: String,
     pub info: Info,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Info {
     pub name: String,
     pub length: u32,

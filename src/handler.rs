@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use crate::{client::Client, torrent::Torrent};
+use crate::{client::Client, handshake::HandshakeMessage, torrent::Torrent};
 use serde_json::Number;
 
 fn jsonify(value: &serde_bencode::value::Value) -> serde_json::Value {
@@ -59,8 +59,14 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(&torrent);
-    let mut client = Client::new(torrent, peer).await;
-    let peer_id = client.handshake().await;
+    let mut client = Client::new(torrent.clone(), peer)
+        .await
+        .expect("Failed to create client");
+    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let peer_id = client
+        .handshake(handshake_message)
+        .await
+        .expect("Failed to handshake");
     println!("Peer ID: {}", peer_id);
 }
 
@@ -69,37 +75,73 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     let torrent = Torrent::new(&torrent);
     let peers = torrent.get_peers().await.expect("Failed to get peers");
     eprintln!("Peers: {:?}", peers);
+    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let mut client = Client::new(torrent, peers[0])
+        .await
+        .expect("Failed to create client");
+    match client.handshake(handshake_message).await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to handshake: {}", e);
+        }
+    }
+    match client.download_piece(piece_index as usize).await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to download piece: {}", e);
+        }
+    }
 
-    let mut client = Client::new(torrent, peers[0]).await;
-    client.handshake().await;
-    client.download_piece(piece_index as usize).await;
-
-    let is_valid = client.cmp_piece_hash().await;
+    let is_valid = client.cmp_piece_hash();
     assert!(is_valid);
 
     let data = client.get_fetched_data();
-    client.create_file(&save_path, data).await;
-    client.send_cancel_message().await;
+    match client.create_file(&save_path, data).await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to create file: {}", e);
+        }
+    }
+    match client.send_cancel_message().await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to send cancel message: {}", e);
+        }
+    }
 }
 
 pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::new(&torrent);
     let peers = torrent.get_peers().await.expect("Failed to get peers");
     let pieces_count = torrent.get_piece_hashes().len();
-    let mut client = Client::new(torrent, peers[0]).await;
-    client.handshake().await;
+    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let mut client = Client::new(torrent, peers[0])
+        .await
+        .expect("Failed to create client");
+    let _ = client.handshake(handshake_message).await;
 
     let mut file_data: Vec<u8> = vec![];
     eprintln!("Downloading {} pieces", pieces_count);
     for piece_index in 0..pieces_count {
         eprintln!("Downloading piece: {}", piece_index);
-        client.download_piece(piece_index).await;
-        let is_valid = client.cmp_piece_hash().await;
+        let _ = client.download_piece(piece_index).await;
+        let is_valid = client.cmp_piece_hash();
         assert!(is_valid);
         let data = client.get_fetched_data();
         file_data.extend(data);
     }
 
-    client.send_cancel_message().await;
-    client.create_file(&save_path, &file_data).await;
+    match client.send_cancel_message().await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to send cancel message: {}", e);
+        }
+    }
+
+    match client.create_file(&save_path, &file_data).await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to create file: {}", e);
+        }
+    }
 }
