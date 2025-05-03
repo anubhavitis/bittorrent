@@ -37,6 +37,6 @@ pub fn magnet_parse_handler(magnet_link: String) {
         }
     }
 
+    println!("Info Hash: {}", magnet_link.info_hash);
     println!("Tracker URL:{}", magnet_link.tr.unwrap());
-    println!("Info hash: {}", magnet_link.info_hash);
 }
