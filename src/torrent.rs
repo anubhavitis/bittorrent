@@ -13,15 +13,15 @@ pub struct Torrent {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Info {
     pub name: String,
-    pub length: i64,
+    pub length: u32,
     pub pieces: ByteBuf,
     #[serde(rename = "piece length")]
-    pub piece_length: i64,
+    pub piece_length: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
-    interval: i64,
+    interval: u32,
     peers: ByteBuf,
 }
 

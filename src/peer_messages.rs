@@ -6,6 +6,7 @@ pub struct PeerMessage {
 }
 
 #[repr(u8)]
+#[derive(Debug, PartialEq)]
 pub enum MessageId {
     Choke = 0,
     Unchoke = 1,
@@ -69,14 +70,14 @@ impl PeerMessage {
 
 #[derive(Debug)]
 pub struct PiecePayload {
-    pub index: u32,
+    pub index: usize,
     pub begin: u32,
     pub block: Vec<u8>,
 }
 
 impl PiecePayload {
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let index = u32::from_be_bytes(bytes[0..4].try_into().expect("Failed to convert index"));
+        let index = usize::from_be_bytes(bytes[0..4].try_into().expect("Failed to convert index"));
         let begin = u32::from_be_bytes(bytes[4..8].try_into().expect("Failed to convert begin"));
         let block = bytes[8..].to_vec();
         Self {
@@ -89,13 +90,13 @@ impl PiecePayload {
 
 #[derive(Debug)]
 pub struct RequestPayload {
-    pub index: u32,
+    pub index: usize,
     pub begin: u32,
     pub length: u32,
 }
 
 impl RequestPayload {
-    pub fn new(index: u32, begin: u32, length: u32) -> Self {
+    pub fn new(index: usize, begin: u32, length: u32) -> Self {
         Self {
             index,
             begin,

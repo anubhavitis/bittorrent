@@ -84,5 +84,34 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     // }
 
     let mut client = Client::new(torrent, peers[0]).await;
-    client.handle_peer(&save_path, piece_index).await;
+    client.handshake().await;
+    client.download_piece(piece_index as usize).await;
+
+    let is_valid = client.cmp_piece_hash().await;
+    assert!(is_valid);
+
+    let data = client.get_fetched_data();
+    client.create_file(&save_path, data).await;
+    client.send_cancel_message().await;
+}
+
+pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
+    let torrent = Torrent::new(&torrent);
+    let peers = torrent.get_peers().await.expect("Failed to get peers");
+    let pieces_count = torrent.info.pieces.len();
+    let mut client = Client::new(torrent, peers[0]).await;
+    client.handshake().await;
+
+    let mut file_data: Vec<u8> = vec![];
+    for piece_index in 0..pieces_count {
+        eprintln!("Downloading piece: {}", piece_index);
+        client.download_piece(piece_index).await;
+        let is_valid = client.cmp_piece_hash().await;
+        assert!(is_valid);
+        let data = client.get_fetched_data();
+        file_data.extend(data);
+    }
+
+    client.send_cancel_message().await;
+    client.create_file(&save_path, &file_data).await;
 }

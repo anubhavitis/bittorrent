@@ -31,6 +31,11 @@ enum Command {
         torrent: PathBuf,
         piece_index: u32,
     },
+    Download {
+        #[arg(short = 'o')]
+        save_path: PathBuf,
+        torrent: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -46,5 +51,8 @@ async fn main() {
             torrent,
             piece_index,
         } => handler::download_piece_handler(save_path, torrent, piece_index).await,
+        Command::Download { save_path, torrent } => {
+            handler::download_handler(save_path, torrent).await
+        }
     }
 }
