@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::{net::SocketAddr, path::PathBuf};
 
-use codecrafters_bittorrent::handler;
+use codecrafters_bittorrent::{handler, magnet_handler};
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -36,6 +37,10 @@ enum Command {
         save_path: PathBuf,
         torrent: PathBuf,
     },
+    #[command(name = "magnet_parse")]
+    MagnetParse {
+        magnet_link: String,
+    },
 }
 
 #[tokio::main]
@@ -53,6 +58,7 @@ async fn main() {
         } => handler::download_piece_handler(save_path, torrent, piece_index).await,
         Command::Download { save_path, torrent } => {
             handler::download_handler(save_path, torrent).await
-        }
+        },
+        Command::MagnetParse { magnet_link } => magnet_handler::magnet_parse_handler(magnet_link),
     }
 }
