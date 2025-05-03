@@ -72,7 +72,7 @@ impl Client {
     }
 
     async fn read_message(&mut self) -> Result<Vec<u8>> {
-        eprintln!("\n\nReading message");
+        // eprintln!("\n\nReading message");
 
         // Read message length (4 bytes)
         let mut length_buffer = [0u8; 4];
@@ -85,11 +85,11 @@ impl Client {
 
         // Handle keep-alive message (length = 0)
         if length == 0 {
-            eprintln!("Received keep-alive message (length=0)");
+            // eprintln!("Received keep-alive message (length=0)");
             return Ok(vec![]);
         }
 
-        eprintln!("Reading message of length: {}", length);
+        // eprintln!("Reading message of length: {}", length);
 
         // Read message content
         let mut message_buffer = vec![0u8; length as usize];
@@ -123,7 +123,7 @@ impl Client {
     }
 
     pub async fn send_cancel_message(&mut self) -> Result<()> {
-        eprintln!("Sending Cancel message");
+        // eprintln!("Sending Cancel message");
         let cancel_message = PeerMessage::new(MessageId::Cancel, vec![]);
         let cancel_bytes = cancel_message.to_bytes();
 
@@ -138,7 +138,7 @@ impl Client {
     }
 
     async fn send_interested_message(&mut self) -> Result<()> {
-        eprintln!("Sending Interested message");
+        // eprintln!("Sending Interested message");
         let interested_message = PeerMessage::new(MessageId::Interested, vec![]);
         let interested_bytes = interested_message.to_bytes();
 
@@ -158,7 +158,7 @@ impl Client {
         begin: u32,
         length: u32,
     ) -> Result<()> {
-        dbg!(piece_index, begin, length);
+        // dbg!(piece_index, begin, length);
         let payload = RequestPayload::new(piece_index as u32, begin, length);
         let request_message = PeerMessage::new(MessageId::Request, payload.to_bytes());
         let request_bytes = request_message.to_bytes();
@@ -254,18 +254,18 @@ impl Client {
                         self.piece_lengths[self.current_piece_index] - next_begin,
                     );
 
-                    dbg!(next_begin, next_len);
+                    // dbg!(next_begin, next_len);
 
                     // If no more data to fetch for this piece, return
                     if next_len == 0 {
-                        eprintln!("No more data to fetch for this piece");
+                        // eprintln!("No more data to fetch for this piece");
                         return Ok(());
                     }
 
                     // Request next block
                     self.send_request_message(self.current_piece_index, next_begin, next_len)
                         .await?;
-                    eprintln!("Request message sent for next block");
+                    // eprintln!("Request message sent for next block");
                 }
                 MessageId::Cancel => {
                     eprintln!("Received Cancel message");
