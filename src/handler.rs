@@ -69,19 +69,6 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     let torrent = Torrent::new(&torrent);
     let peers = torrent.get_peers().await.expect("Failed to get peers");
     eprintln!("Peers: {:?}", peers);
-    // let mut handles = vec![];
-    // for peer in peers {
-    //     let mut client = Client::new();
-    //     let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
-    //     let handle = tokio::spawn(async move {
-    //         client.handle_peer(handshake_message.clone(), peer).await;
-    //     });
-    //     handles.push(handle);
-    // }
-
-    // for handle in handles {
-    //     handle.await.unwrap();
-    // }
 
     let mut client = Client::new(torrent, peers[0]).await;
     client.handshake().await;
@@ -98,11 +85,12 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
 pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::new(&torrent);
     let peers = torrent.get_peers().await.expect("Failed to get peers");
-    let pieces_count = torrent.info.pieces.len();
+    let pieces_count = torrent.get_piece_hashes().len();
     let mut client = Client::new(torrent, peers[0]).await;
     client.handshake().await;
 
     let mut file_data: Vec<u8> = vec![];
+    eprintln!("Downloading {} pieces", pieces_count);
     for piece_index in 0..pieces_count {
         eprintln!("Downloading piece: {}", piece_index);
         client.download_piece(piece_index).await;

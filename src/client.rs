@@ -70,7 +70,6 @@ impl Client {
             .read_exact(&mut message_buffer)
             .await
             .expect("Failed to read message");
-        eprintln!("Message read: {:?}\n\n", message_buffer);
         message_buffer
     }
 
@@ -111,10 +110,10 @@ impl Client {
 
     pub async fn send_request_message(&mut self, piece_index: usize, begin: u32, length: u32) {
         eprintln!(
-            "Sending Request message for piece: {}, begin: {}, length: {}",
+            "\n\nSending Request message for piece: {}, begin: {}, length: {}",
             piece_index, begin, length
         );
-        let payload = RequestPayload::new(piece_index, begin, length);
+        let payload = RequestPayload::new(piece_index as u32, begin, length);
         let request_message = PeerMessage::new(MessageId::Request, payload.to_bytes());
         eprintln!("Request message: {:?}", request_message);
         let request_bytes = request_message.to_bytes();
@@ -150,11 +149,11 @@ impl Client {
         loop {
             let message_buffer = self.read_message().await;
             let message_id = message_buffer[0];
-            let mut piece_length = self.piece_length[self.current_piece_index];
             match MessageId::from(message_id) {
                 MessageId::Choke => eprintln!("Received Choke message"),
                 MessageId::Unchoke => {
                     eprintln!("Received Unchoke message");
+                    self.ready_to_request = true;
                     break;
                 }
                 MessageId::Interested => eprintln!("Received Interested message"),
@@ -167,21 +166,24 @@ impl Client {
                 MessageId::Request => eprintln!("Received Request message"),
                 MessageId::Piece => {
                     let fetched_piece = PeerMessage::from_bytes(&message_buffer);
-                    eprintln!("Received Piece message {:?}", fetched_piece);
                     let fetched_piece_payload = PiecePayload::from_bytes(&fetched_piece.payload);
                     self.fetched_data
                         .extend_from_slice(&fetched_piece_payload.block);
-                    piece_length -= fetched_piece_payload.block.len() as u32;
-
-                    if piece_length == 0 {
-                        // No more data to fetch
-                        eprintln!("No more data to fetch");
-                        break;
-                    }
 
                     let next_begin =
                         fetched_piece_payload.begin + fetched_piece_payload.block.len() as u32;
-                    let next_len = min(2 << 13, piece_length);
+                    let next_len = min(
+                        self.reading_length,
+                        self.piece_length[self.current_piece_index] - next_begin,
+                    );
+
+                    eprintln!("next_begin: {}, next_len: {}", next_begin, next_len);
+                    if next_len == 0 {
+                        // No more data to fetch
+                        eprintln!("No more data to fetch");
+                        return;
+                    }
+
                     self.send_request_message(self.current_piece_index, next_begin, next_len)
                         .await;
 
@@ -199,18 +201,18 @@ impl Client {
             eprintln!("Pre-request handler done");
         }
 
+        self.fetched_data.clear();
         eprintln!(
-            "Total fetched {}, reading {} length",
-            self.fetched_data.len(),
-            self.piece_length[piece_index]
+            "\n\n#############################\nDownloading piece: {}\n#############################\n\n",
+            piece_index
         );
 
         self.current_piece_index = piece_index;
         let reading_length = min(self.reading_length, self.piece_length[piece_index]);
         self.send_request_message(piece_index, 0, reading_length)
             .await;
-        loop {
-            self.message_handler().await;
-        }
+        self.message_handler().await;
+
+        eprintln!("Read {} bytes", self.fetched_data.len());
     }
 }
