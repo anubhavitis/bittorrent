@@ -1,35 +1,36 @@
-[![progress-banner](https://backend.codecrafters.io/progress/bittorrent/e0ad799e-438c-47a6-b040-58fe6a0cd235)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# Rust BitTorrent Client
 
-This is a starting point for Rust solutions to the
-["Build Your Own BitTorrent" Challenge](https://app.codecrafters.io/courses/bittorrent/overview).
+A lightweight and efficient BitTorrent client implementation in Rust. This project demonstrates the core concepts of the BitTorrent protocol, including torrent file parsing, peer communication, and file downloading capabilities.
 
-In this challenge, you’ll build a BitTorrent client that's capable of parsing a
-.torrent file and downloading a file from a peer. Along the way, we’ll learn
-about how torrent files are structured, HTTP trackers, BitTorrent’s Peer
-Protocol, pipelining and more.
+## Features
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+- Parse and validate .torrent files
+- HTTP tracker communication
+- Peer protocol implementation
+- Efficient file downloading with pipelining
+- Written in Rust for performance and safety
 
-# Passing the first stage
+## Prerequisites
 
-The entry point for your BitTorrent implementation is in `src/main.rs`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
+- Rust (latest stable version)
+- Cargo package manager
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
-```
+## Project Structure
 
-Time to move on to the next stage!
+- `src/main.rs` - Entry point of the application
+- `src/torrent.rs` - Torrent file parsing and handling
+- `src/peer.rs` - Peer protocol implementation
+- `src/tracker.rs` - Tracker communication logic
 
-# Stage 2 & beyond
+## Contributing
 
-Note: This section is for stages 2 and beyond.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Ensure you have `cargo (1.85)` installed locally
-1. Run `./your_bittorrent.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- The BitTorrent Protocol Specification
+- The Rust community for their excellent documentation and tools
