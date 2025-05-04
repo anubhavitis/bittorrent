@@ -102,10 +102,10 @@ impl TcpClient {
     }
 
     async fn send_request_message(&mut self, piece_index: usize, begin: u32, length: u32) {
-        eprintln!(
-            "Sending Request message for piece {} of len {}",
-            piece_index, length
-        );
+        // eprintln!(
+        //     "Sending Request message for piece {} of len {}",
+        //     piece_index, length
+        // );
         let payload = RequestPayload::new(piece_index as u32, begin, length);
         let request_message = PeerMessage::new(MessageId::Request, payload.to_bytes());
         let request_bytes = request_message.to_bytes();
@@ -131,7 +131,7 @@ impl TcpClient {
                     eprintln!("Received Choke message");
                 }
                 MessageId::Unchoke => {
-                    eprintln!("Received Unchoke message");
+                    // eprintln!("Received Unchoke message");
                     self.ready_to_request = true;
                     break;
                 }
@@ -145,7 +145,7 @@ impl TcpClient {
                     eprintln!("Received Have message");
                 }
                 MessageId::Bitfield => {
-                    eprintln!("Received Bitfield message");
+                    // eprintln!("Received Bitfield message");
                     self.send_interested_message().await;
                 }
                 MessageId::Request => {
@@ -153,7 +153,7 @@ impl TcpClient {
                 }
                 MessageId::Piece => {
                     // Process piece data
-                    eprintln!("Received Piece message for index {}", self.piece_index);
+                    // eprintln!("Received Piece message for index {}", self.piece_index);
                     let fetched_piece = PeerMessage::from_bytes(&message_buffer);
                     let fetched_piece_payload = PiecePayload::from_bytes(&fetched_piece.payload);
 
@@ -194,9 +194,9 @@ impl TcpClient {
     ) -> Result<Vec<u8>, String> {
         // Handle initial message exchange if not ready
         if !self.ready_to_request {
-            eprintln!("Executing pre-request handler");
+            // eprintln!("Executing pre-request handler");
             self.message_handler().await;
-            eprintln!("Pre-request handler done");
+            // eprintln!("Pre-request handler done");
         }
 
         self.fetched_data.clear();
@@ -212,11 +212,11 @@ impl TcpClient {
         // Handle messages until piece is complete
         self.message_handler().await;
 
-        eprintln!(
-            "Downloaded {} bytes for piece {}",
-            self.fetched_data.len(),
-            piece_index
-        );
+        // eprintln!(
+        //     "Downloaded {} bytes for piece {}",
+        //     self.fetched_data.len(),
+        //     piece_index
+        // );
 
         let mut hasher = Sha1::new();
         hasher.update(&self.fetched_data);
@@ -226,7 +226,7 @@ impl TcpClient {
         if computed_hash_str == hash {
             Ok(self.fetched_data.clone())
         } else {
-            eprintln!("Hash mismatch for piece {}", piece_index);
+            // eprintln!("Hash mismatch for piece {}", piece_index);
             Err(format!("Hash mismatch for piece {}", piece_index))
         }
     }

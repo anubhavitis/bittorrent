@@ -136,10 +136,10 @@ impl Client {
             let hash = self.pieces[piece_index].hash.clone();
             tokio::spawn(async move {
                 let permit = semaphore.acquire().await.unwrap();
-                eprintln!(
-                    "Downloading piece {} of len {} from peer {}",
-                    piece_index, piece_length, peer.addr
-                );
+                // eprintln!(
+                //     "Downloading piece {} of len {} from peer {}",
+                //     piece_index, piece_length, peer.addr
+                // );
                 let mut client = TcpClient::new(peer.addr).await;
 
                 let _ = client.handshake(handshake_message).await;
@@ -157,7 +157,7 @@ impl Client {
 
         drop(data_sender);
         while let Some(data) = data_receiver.recv().await {
-            eprintln!("Received data for piece {}", data.piece_index);
+            // eprintln!("Received data for piece {}", data.piece_index);
             self.fetched_data.push(data);
         }
 
