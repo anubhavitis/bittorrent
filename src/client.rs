@@ -3,11 +3,11 @@ use crate::peer::Peer;
 use crate::pieces::Piece;
 use crate::tcp::TcpClient;
 use crate::torrent::Torrent;
-use std::fs::File;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{collections::HashMap, fs::File};
 use tokio::sync::{mpsc, Semaphore};
 
 struct FetchedData {
@@ -27,6 +27,8 @@ pub struct Client {
     pieces: Vec<Piece>,
     piece_peers: Vec<Vec<Peer>>,
     fetched_data: Vec<FetchedData>,
+
+    streams: HashMap<SocketAddr, TcpClient>,
 }
 
 impl Client {
@@ -37,10 +39,11 @@ impl Client {
             pieces: Vec::new(),
             piece_peers: Vec::new(),
             fetched_data: Vec::new(),
+            streams: HashMap::new(),
         }
     }
 
-    pub async fn init(&mut self) {
+    pub async fn init_download(&mut self) {
         self.init_peers().await;
         self.init_pieces();
         self.init_piece_peers();
@@ -64,9 +67,6 @@ impl Client {
                     .collect()
             })
             .collect();
-
-        // Sort piece_peers by the number of peers available for each piece (ascending)
-        self.piece_peers.sort_by(|a, b| a.len().cmp(&b.len()));
     }
 
     pub fn init_pieces(&mut self) {
@@ -106,19 +106,21 @@ impl Client {
                 let bitfield = bitfield_buffer[1..].to_vec();
 
                 let new_peer = Peer::new(peer, bitfield);
-                sender.send(new_peer).await.unwrap();
+                sender.send((new_peer, client)).await.unwrap();
 
                 permit.forget();
             });
         }
 
         drop(test_sender);
-        while let Some(peer) = test_receiver.recv().await {
-            self.peers.push(peer);
+        while let Some((peer, client)) = test_receiver.recv().await {
+            self.peers.push(peer.clone());
+            self.streams.insert(peer.addr, client);
         }
     }
 
     pub async fn download(&mut self, save_path: PathBuf, only_piece_index: Option<usize>) {
+        self.init_download().await;
         let (data_sender, mut data_receiver) = mpsc::channel(1 << 15);
         let semaphore = Arc::new(Semaphore::new(5));
 

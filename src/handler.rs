@@ -69,7 +69,6 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     let torrent = Torrent::new(&torrent);
 
     let mut client = Client::new(torrent);
-    client.init().await;
     client.download(save_path, Some(piece_index as usize)).await;
 }
 
@@ -77,6 +76,5 @@ pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::new(&torrent);
 
     let mut client = Client::new(torrent);
-    client.init().await;
     client.download(save_path, None).await;
 }
