@@ -1,7 +1,9 @@
-use std::{net::SocketAddr, path::PathBuf};
-
-use crate::{client::Client, torrent::Torrent};
 use serde_json::Number;
+use std::{fs::File, io::Write, net::SocketAddr, path::PathBuf};
+
+use crate::manager::{
+    client::Client, handshake::HandshakeMessage, tcp::TcpManager, torrent::Torrent,
+};
 
 fn jsonify(value: &serde_bencode::value::Value) -> serde_json::Value {
     match value {
@@ -59,22 +61,36 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(&torrent);
-
-    let mut client = Client::new(torrent);
-    let peer_id = client.handshake(peer).await;
+    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let mut stream = TcpManager::connect(peer).await;
+    let peer_id = stream
+        .handshake(handshake_message)
+        .await
+        .expect("Failed to handshake");
     println!("Peer ID: {}", peer_id);
 }
 
 pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
     let torrent = Torrent::new(&torrent);
-
+    let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent);
-    client.download(save_path, Some(piece_index as usize)).await;
+    client.init_download(peer).await.unwrap();
+    let data = client.download_piece(piece_index).await.unwrap();
+    let mut file = File::create(save_path).unwrap();
+    file.write_all(&data).unwrap();
 }
 
 pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::new(&torrent);
-
-    let mut client = Client::new(torrent);
-    client.download(save_path, None).await;
+    let peer = torrent.get_peers().await.unwrap()[0];
+    let mut client = Client::new(torrent.clone());
+    client.init_download(peer).await.unwrap();
+    let pieces = torrent.get_piece_count();
+    let mut data = Vec::new();
+    for i in 0..pieces {
+        let piece_data = client.download_piece(i as u32).await.unwrap();
+        data.extend_from_slice(&piece_data);
+    }
+    let mut file = File::create(save_path).unwrap();
+    file.write_all(&data).unwrap();
 }

@@ -5,8 +5,8 @@ pub struct PeerMessage {
     pub payload: Vec<u8>,
 }
 
-#[repr(u8)]
 #[derive(Debug, PartialEq)]
+#[repr(u8)]
 pub enum MessageId {
     Choke = 0,
     Unchoke = 1,

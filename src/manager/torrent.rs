@@ -1,4 +1,3 @@
-use crate::utils;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
@@ -44,9 +43,8 @@ impl Torrent {
         let info_hash = self.get_info_hash();
         let url_encoded_info_hash = urlencoding::encode_binary(&info_hash).to_string();
 
-        let peer_id = utils::generate_peer_id();
         let url_params = serde_json::json!({
-            "peer_id": peer_id,
+            "peer_id": "01012323454567678989",
             "port": 6881,
             "uploaded": 1,
             "downloaded": 1,
@@ -85,11 +83,27 @@ impl Torrent {
 
     pub fn get_piece_hashes(&self) -> Vec<String> {
         let mut hashes = Vec::new();
-        for i in 0..self.info.pieces.len() / 20 {
-            let hash = self.info.pieces[i * 20..(i + 1) * 20].to_vec();
+        for i in 0..self.get_piece_count() {
+            let hash = self.get_piece_hash(i);
             hashes.push(hex::encode(hash));
         }
 
         hashes
+    }
+
+    pub fn get_piece_count(&self) -> usize {
+        self.info.pieces.len() / 20
+    }
+
+    pub fn get_piece_length(&self, piece_index: usize) -> u32 {
+        if piece_index == self.get_piece_count() - 1 {
+            self.info.length % self.info.piece_length
+        } else {
+            self.info.piece_length
+        }
+    }
+
+    pub fn get_piece_hash(&self, piece_index: usize) -> Vec<u8> {
+        self.info.pieces[piece_index * 20..(piece_index + 1) * 20].to_vec()
     }
 }

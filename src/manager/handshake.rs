@@ -1,5 +1,3 @@
-use crate::utils;
-
 #[derive(Debug, Clone)]
 pub struct HandshakeMessage {
     pub length: u8,
@@ -11,7 +9,7 @@ pub struct HandshakeMessage {
 
 impl HandshakeMessage {
     pub fn new(info_hash: [u8; 20]) -> Self {
-        let peer_id = utils::generate_peer_id();
+        let peer_id = generate_peer_id();
         HandshakeMessage {
             length: 19,
             protocol: *b"BitTorrent protocol",
@@ -40,4 +38,13 @@ impl HandshakeMessage {
         bytes[48..68].copy_from_slice(&self.peer_id);
         bytes
     }
+}
+
+use rand::{rng, Rng};
+pub fn generate_peer_id() -> String {
+    let mut rng = rng();
+
+    (0..20)
+        .map(|_| rng.random_range(0..10).to_string())
+        .collect()
 }
