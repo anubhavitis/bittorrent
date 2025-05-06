@@ -13,7 +13,7 @@ impl HandshakeMessage {
         let mut reserved = [0u8; 8];
         if is_magnet {
             // 20th bit from last is 1
-            reserved[7] = 16;
+            reserved[5] = 16;
         }
 
         HandshakeMessage {
