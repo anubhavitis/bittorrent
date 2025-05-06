@@ -70,7 +70,7 @@ pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     println!("Peer ID: {}", peer_id);
 }
 
-pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
+pub async fn download_piece(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
     let torrent = Torrent::new(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent);
@@ -80,7 +80,7 @@ pub async fn download_piece_handler(save_path: PathBuf, torrent: PathBuf, piece_
     file.write_all(&data).unwrap();
 }
 
-pub async fn download_handler(save_path: PathBuf, torrent: PathBuf) {
+pub async fn downlaod(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::new(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent.clone());

@@ -41,6 +41,10 @@ enum Command {
     MagnetParse {
         magnet_link: String,
     },
+    #[command(name = "magnet_handshake")]
+    MagnetHandshake {
+        magnet_link: String,
+    },
 }
 
 #[tokio::main]
@@ -55,10 +59,9 @@ async fn main() {
             save_path,
             torrent,
             piece_index,
-        } => handler::download_piece_handler(save_path, torrent, piece_index).await,
-        Command::Download { save_path, torrent } => {
-            handler::download_handler(save_path, torrent).await
-        },
-        Command::MagnetParse { magnet_link } => magnet_handler::magnet_parse_handler(magnet_link),
+        } => handler::download_piece(save_path, torrent, piece_index).await,
+        Command::Download { save_path, torrent } => handler::downlaod(save_path, torrent).await,
+        Command::MagnetParse { magnet_link } => magnet_handler::parse(magnet_link),
+        Command::MagnetHandshake { magnet_link } => magnet_handler::handshake(magnet_link).await,
     }
 }

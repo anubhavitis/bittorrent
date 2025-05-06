@@ -58,6 +58,7 @@ impl Torrent {
             "{}?{}&info_hash={}",
             self.announce, encoded_url_params, url_encoded_info_hash
         );
+        dbg!(&url);
 
         // Send request to tracker and parse response
         let tracker_response = reqwest::get(url.as_str()).await?;
