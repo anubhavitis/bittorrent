@@ -1,10 +1,8 @@
 use serde_json::Number;
 use std::{fs::File, io::Write, net::SocketAddr, path::PathBuf};
 
-use crate::manager::{
-    client::Client, handshake::HandshakeMessage, tcp::TcpManager, torrent::Torrent,
-};
-
+use crate::handshake::HandshakeMessage;
+use crate::manager::{client::Client, tcp::TcpManager, torrent::Torrent};
 fn jsonify(value: &serde_bencode::value::Value) -> serde_json::Value {
     match value {
         serde_bencode::value::Value::Bytes(s) => {
@@ -61,7 +59,7 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
     let torrent = Torrent::new(&torrent);
-    let handshake_message = HandshakeMessage::new(torrent.get_info_hash());
+    let handshake_message = HandshakeMessage::new(torrent.get_info_hash(), false);
     let mut stream = TcpManager::connect(peer).await;
     let peer_id = stream
         .handshake(handshake_message)

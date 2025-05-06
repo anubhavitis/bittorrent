@@ -3,13 +3,12 @@ use std::{cmp::min, net::SocketAddr};
 use anyhow::Error;
 use sha1::{Digest, Sha1};
 
+use crate::handshake::HandshakeMessage;
 use crate::manager::{
-    handshake::HandshakeMessage,
     peer_messages::{MessageId, PiecePayload, RequestPayload},
     tcp::TcpManager,
     torrent::Torrent,
 };
-
 pub struct Client {
     torrent: Torrent,
     stream: Option<TcpManager>,
@@ -28,7 +27,7 @@ impl Client {
         self.stream = Some(stream);
 
         // Do Handshake
-        let handshake_message = HandshakeMessage::new(self.torrent.get_info_hash());
+        let handshake_message = HandshakeMessage::new(self.torrent.get_info_hash(), false);
         let _ = self
             .stream
             .as_mut()

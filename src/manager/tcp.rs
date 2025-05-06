@@ -6,10 +6,8 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::manager::{
-    handshake::HandshakeMessage,
-    peer_messages::{MessageId, PeerMessage},
-};
+use crate::handshake::HandshakeMessage;
+use crate::manager::peer_messages::{MessageId, PeerMessage};
 
 pub struct TcpManager {
     stream: TcpStream,

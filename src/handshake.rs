@@ -8,12 +8,18 @@ pub struct HandshakeMessage {
 }
 
 impl HandshakeMessage {
-    pub fn new(info_hash: [u8; 20]) -> Self {
+    pub fn new(info_hash: [u8; 20], is_magnet: bool) -> Self {
         let peer_id = generate_peer_id();
+        let mut reserved = [0u8; 8];
+        if is_magnet {
+            // 20th bit from last is 1
+            reserved[7] = 16;
+        }
+
         HandshakeMessage {
             length: 19,
             protocol: *b"BitTorrent protocol",
-            reserved: [0; 8],
+            reserved,
             info_hash,
             peer_id: peer_id.as_bytes().try_into().unwrap(),
         }

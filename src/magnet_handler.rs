@@ -1,4 +1,4 @@
-use crate::{magnet::magnet_link::MagnetLink, manager::torrent::Torrent};
+use crate::magnet::magnet_link::MagnetLink;
 
 pub fn parse(magnet_link: String) {
     let magnet_link = MagnetLink::from(magnet_link)
@@ -12,6 +12,6 @@ pub async fn handshake(magnet_link: String) {
     let magnet = MagnetLink::from(magnet_link)
         .map_err(|e| e.to_string())
         .unwrap();
-    let peers = magnet.fetch_peers().await.unwrap();
-    println!("Peers: {:?}", peers);
+    let peer_id = magnet.handshake().await.unwrap();
+    println!("Peer ID: {:?}", hex::encode(peer_id));
 }

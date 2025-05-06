@@ -5,6 +5,9 @@ use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 
+use crate::handshake::HandshakeMessage;
+use crate::magnet::tcp::TcpManager;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
     interval: u32,
@@ -111,5 +114,13 @@ impl MagnetLink {
         }
 
         Ok(peers)
+    }
+
+    pub async fn handshake(&self) -> Result<[u8; 20], Error> {
+        let peers = self.fetch_peers().await?;
+        let handshake_message = HandshakeMessage::new(self.get_info_hash(), true);
+        let mut client = TcpManager::connect(peers[0]).await;
+        let peer_id = client.handshake(handshake_message).await?;
+        Ok(peer_id)
     }
 }
