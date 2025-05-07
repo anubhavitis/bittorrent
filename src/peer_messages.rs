@@ -132,8 +132,10 @@ impl ExtensionPayload {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let data = serde_bencode::to_bytes(&self.payload).unwrap();
-        data
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&self.message_id.to_be_bytes());
+        bytes.extend_from_slice(&self.payload.to_bytes());
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
