@@ -8,6 +8,7 @@ use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
+use crate::manager::torrent::{Info, Torrent};
 use crate::peer_messages::ExtensionPayload;
 use crate::{peer_messages::MessageId, tcp::TcpManager};
 
@@ -144,7 +145,7 @@ impl MagnetLink {
             return Err(anyhow::anyhow!("Failed to get peer ID"));
         }
 
-        let (msg_id, _) = self.client.as_mut().unwrap().read_message().await?;
+        let (_msg_id, _payload) = self.client.as_mut().unwrap().read_message().await?;
 
         let peer_id = hex::encode(handshake_message.peer_id);
 
@@ -162,7 +163,7 @@ impl MagnetLink {
             .send_message(MessageId::Extension, msg_bytes)
             .await?;
 
-        let (msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
+        let (_msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
 
         let extension_payload = ExtensionPayload::from_bytes(&payload);
 
@@ -194,12 +195,35 @@ impl MagnetLink {
 
         let (msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
         assert_eq!(msg_id, MessageId::Extension);
-        // let extension_payload = ExtensionPayload::from_bytes(&payload);
 
-        // let extension_id = match &extension_payload.payload {
-        //     Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
-        //         Some(Value::Dict(inner_dict)) => match inner_dict.get(&b"ut_metadata".to_vec()) {
+        let (header, data) = split_header_and_data(&payload).unwrap();
 
+        let extension_payload = ExtensionPayload::from_bytes(&header);
+        assert_eq!(extension_payload.message_id, 21);
+
+        let info = Info::from_bytes(&data);
+        let torrent = Torrent::new(self.tracker_url.as_ref().unwrap().to_string(), info);
+        let info_hash = torrent.get_info_hash();
+        let info_hash_str = hex::encode(info_hash);
+        let tracker_url = torrent.announce.clone();
+        let hashes = torrent.get_piece_hashes();
+
+        println!("Tracker URL: {}", tracker_url);
+        println!("Length: {}", torrent.info.length);
+        println!("Info Hash: {}", info_hash_str);
+        println!("Piece Length: {}", torrent.info.piece_length);
+        println!("Piece Hashes:");
+        for hash in hashes {
+            println!("{}", hash);
+        }
         Ok(())
+    }
+}
+
+fn split_header_and_data(message: &[u8]) -> Option<(&[u8], &[u8])> {
+    if let Some(pos) = message.windows(2).position(|window| window == b"ee") {
+        Some((&message[..pos + 2], &message[pos + 2..]))
+    } else {
+        None
     }
 }

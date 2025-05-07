@@ -28,7 +28,7 @@ pub fn decode_bencoded_value(encoded_value: &str) {
 }
 
 pub fn get_info(file_name: &std::path::PathBuf) {
-    let torrent = Torrent::new(file_name);
+    let torrent = Torrent::from(file_name);
     let info_hash = torrent.get_info_hash();
     let info_hash_str = hex::encode(info_hash);
     let tracker_url = torrent.announce.clone();
@@ -45,7 +45,7 @@ pub fn get_info(file_name: &std::path::PathBuf) {
 }
 
 pub async fn peers(file_name: &std::path::PathBuf) {
-    let torrent = Torrent::new(file_name);
+    let torrent = Torrent::from(file_name);
     let peers = torrent.get_peers().await;
     match peers {
         Ok(peers) => {
@@ -60,7 +60,7 @@ pub async fn peers(file_name: &std::path::PathBuf) {
 }
 
 pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
-    let torrent = Torrent::new(&torrent);
+    let torrent = Torrent::from(&torrent);
     let handshake_message = HandshakeMessage::new(torrent.get_info_hash(), false);
     let mut stream = TcpManager::connect(peer).await;
     let handshake = stream
@@ -71,7 +71,7 @@ pub async fn handshake_handler(torrent: PathBuf, peer: SocketAddr) {
 }
 
 pub async fn download_piece(save_path: PathBuf, torrent: PathBuf, piece_index: u32) {
-    let torrent = Torrent::new(&torrent);
+    let torrent = Torrent::from(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent);
     client.init_download(peer).await.unwrap();
@@ -81,7 +81,7 @@ pub async fn download_piece(save_path: PathBuf, torrent: PathBuf, piece_index: u
 }
 
 pub async fn downlaod(save_path: PathBuf, torrent: PathBuf) {
-    let torrent = Torrent::new(&torrent);
+    let torrent = Torrent::from(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent.clone());
     client.init_download(peer).await.unwrap();

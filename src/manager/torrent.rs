@@ -18,6 +18,12 @@ pub struct Info {
     pub piece_length: u32,
 }
 
+impl Info {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let info = serde_bencode::from_bytes(bytes).unwrap();
+        info
+    }
+}
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
     interval: u32,
@@ -25,7 +31,11 @@ struct TrackerResponse {
 }
 
 impl Torrent {
-    pub fn new(file_name: &PathBuf) -> Self {
+    pub fn new(announce: String, info: Info) -> Self {
+        Self { announce, info }
+    }
+
+    pub fn from(file_name: &PathBuf) -> Self {
         let file = std::fs::read(file_name).expect("Failed to read the file");
         let torrent: Torrent = serde_bencode::from_bytes(&file).unwrap();
         torrent
