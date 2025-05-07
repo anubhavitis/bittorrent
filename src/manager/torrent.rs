@@ -78,7 +78,6 @@ impl Torrent {
             }
             i += 6;
         }
-        dbg!(&peers);
         Ok(peers)
     }
 
