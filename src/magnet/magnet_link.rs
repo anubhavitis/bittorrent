@@ -4,11 +4,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use anyhow::Error;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
-use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
-use crate::peer_messages::{ExtensionPayload, ExtensionPayloadData};
 use crate::{peer_messages::MessageId, tcp::TcpManager};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -133,11 +131,14 @@ impl MagnetLink {
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Bitfield);
 
-        let mut inner_msg = vec![0u8];
-        inner_msg.extend(
-            serde_bencode::to_bytes(&HashMap::from([("ut_metadata".to_string(), 21)])).unwrap(),
+        let mut msg: Vec<u8> = vec![0u8];
+        msg.extend(
+            serde_bencode::to_bytes(&HashMap::from([(
+                "m".to_string(),
+                serde_bencode::to_bytes(&HashMap::from([("ut_metadata".to_string(), 21)])).unwrap(),
+            )]))
+            .unwrap(),
         );
-        let msg = serde_bencode::to_bytes(&HashMap::from([("m".to_string(), inner_msg)])).unwrap();
 
         client.send_message(MessageId::Extension, msg).await?;
 
