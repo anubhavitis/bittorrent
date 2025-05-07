@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug)]
 pub struct PeerMessage {
     pub length: [u8; 4],
@@ -17,6 +19,7 @@ pub enum MessageId {
     Request = 6,
     Piece = 7,
     Cancel = 8,
+    Extension = 20,
 }
 
 impl From<u8> for MessageId {
@@ -31,6 +34,7 @@ impl From<u8> for MessageId {
             6 => MessageId::Request,
             7 => MessageId::Piece,
             8 => MessageId::Cancel,
+            20 => MessageId::Extension,
             _ => panic!("Invalid message ID: {}", value),
         }
     }
@@ -110,5 +114,68 @@ impl RequestPayload {
         bytes.extend_from_slice(&self.begin.to_be_bytes());
         bytes.extend_from_slice(&self.length.to_be_bytes());
         bytes
+    }
+}
+
+#[derive(Debug)]
+pub struct ExtensionPayload {
+    pub message_id: u8,
+    pub payload: Vec<u8>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionPayloadData {
+    pub m: Vec<u8>,
+}
+
+impl ExtensionPayload {
+    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
+        Self {
+            message_id,
+            payload,
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&self.message_id.to_be_bytes());
+        bytes.extend_from_slice(&self.payload);
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let message_id = bytes[0];
+        let payload = bytes[1..].to_vec();
+        Self {
+            message_id,
+            payload,
+        }
+    }
+
+    pub fn get_payload_data(&self) -> ExtensionPayloadData {
+        let data: ExtensionPayloadData = serde_bencode::from_bytes(&self.payload).unwrap();
+        data
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionPayloadDataM {
+    pub ut_metadata: u32,
+}
+
+impl ExtensionPayloadDataM {
+    pub fn new(ut_metadata: u32) -> Self {
+        Self { ut_metadata }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&self.ut_metadata.to_be_bytes());
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let data: ExtensionPayloadDataM = serde_bencode::from_bytes(bytes).unwrap();
+        data
     }
 }

@@ -7,7 +7,7 @@ use tokio::{
 };
 
 use crate::handshake::HandshakeMessage;
-use crate::manager::peer_messages::{MessageId, PeerMessage};
+use crate::peer_messages::{MessageId, PeerMessage};
 
 pub struct TcpManager {
     stream: TcpStream,
@@ -26,7 +26,7 @@ impl TcpManager {
     pub async fn handshake(
         &mut self,
         handshake_message: HandshakeMessage,
-    ) -> Result<String, Error> {
+    ) -> Result<HandshakeMessage, Error> {
         let handshake_message_bytes = handshake_message.to_bytes();
         self.stream
             .write_all(&handshake_message_bytes)
@@ -40,7 +40,7 @@ impl TcpManager {
             .map_err(|e| anyhow::anyhow!("Failed to read handshake response: {}", e))?;
 
         let resp = HandshakeMessage::from_bytes(&buffer);
-        Ok(hex::encode(resp.peer_id))
+        Ok(resp)
     }
 
     pub async fn read_message(&mut self) -> Result<(MessageId, Vec<u8>), Error> {

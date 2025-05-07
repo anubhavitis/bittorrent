@@ -12,6 +12,6 @@ pub async fn handshake(magnet_link: String) {
     let magnet = MagnetLink::from(magnet_link)
         .map_err(|e| e.to_string())
         .unwrap();
-    let peer_id = magnet.handshake().await.unwrap();
-    println!("Peer ID: {}", hex::encode(peer_id));
+    let peer_id = magnet.extension_handshake().await.unwrap();
+    println!("Peer ID: {}", peer_id);
 }

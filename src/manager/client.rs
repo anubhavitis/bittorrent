@@ -4,11 +4,9 @@ use anyhow::Error;
 use sha1::{Digest, Sha1};
 
 use crate::handshake::HandshakeMessage;
-use crate::manager::{
-    peer_messages::{MessageId, PiecePayload, RequestPayload},
-    tcp::TcpManager,
-    torrent::Torrent,
-};
+use crate::manager::torrent::Torrent;
+use crate::peer_messages::{MessageId, PiecePayload, RequestPayload};
+use crate::tcp::TcpManager;
 pub struct Client {
     torrent: Torrent,
     stream: Option<TcpManager>,

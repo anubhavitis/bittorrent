@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
-use crate::magnet::tcp::TcpManager;
+use crate::peer_messages::{ExtensionPayload, ExtensionPayloadDataM, PeerMessage};
+use crate::{peer_messages::MessageId, tcp::TcpManager};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
@@ -116,11 +117,29 @@ impl MagnetLink {
         Ok(peers)
     }
 
-    pub async fn handshake(&self) -> Result<[u8; 20], Error> {
+    pub async fn extension_handshake(&self) -> Result<String, Error> {
         let peers = self.fetch_peers().await?;
         let handshake_message = HandshakeMessage::new(self.get_info_hash(), true);
         let mut client = TcpManager::connect(peers[0]).await;
-        let peer_id = client.handshake(handshake_message).await?;
-        Ok(peer_id)
+        let handshake_message = client.handshake(handshake_message).await?;
+
+        if handshake_message.reserved[5] != 16 {
+            dbg!(&handshake_message.reserved);
+            return Err(anyhow::anyhow!("Failed to get peer ID"));
+        }
+
+        let (msg_id, _) = client.read_message().await?;
+        assert_eq!(msg_id, MessageId::Bitfield);
+
+        let extension_payload_data_m = ExtensionPayloadDataM::new(21);
+        let extension_payload = ExtensionPayload::new(0, extension_payload_data_m.to_bytes());
+        client
+            .send_message(MessageId::Extension, extension_payload.to_bytes())
+            .await?;
+
+        let (msg_id, _) = client.read_message().await?;
+        assert_eq!(msg_id, MessageId::Extension);
+
+        Ok(hex::encode(handshake_message.peer_id))
     }
 }
