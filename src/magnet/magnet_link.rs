@@ -133,20 +133,13 @@ impl MagnetLink {
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Bitfield);
 
-        let extension_payload_data =
-            ExtensionPayloadData::new(HashMap::from([("ut_metadata".to_string(), 21)]));
+        let msg = serde_bencode::to_bytes(&HashMap::from([(
+            "m".to_string(),
+            serde_bencode::to_bytes(&HashMap::from([("ut_metadata".to_string(), 21)])).unwrap(),
+        )]))
+        .unwrap();
 
-        let extension_payload = ExtensionPayload::new(
-            0u8,
-            HashMap::from([(
-                "m".to_string(),
-                Value::from(extension_payload_data.to_bytes()),
-            )]),
-        );
-
-        client
-            .send_message(MessageId::Extension, extension_payload.to_bytes())
-            .await?;
+        client.send_message(MessageId::Extension, msg).await?;
 
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Extension);
