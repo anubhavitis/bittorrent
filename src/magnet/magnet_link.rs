@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use anyhow::Error;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
+use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
@@ -137,7 +138,10 @@ impl MagnetLink {
 
         let extension_payload = ExtensionPayload::new(
             0u8,
-            HashMap::from([("m".to_string(), extension_payload_data.to_bytes())]),
+            HashMap::from([(
+                "m".to_string(),
+                Value::from(extension_payload_data.to_bytes()),
+            )]),
         );
 
         client

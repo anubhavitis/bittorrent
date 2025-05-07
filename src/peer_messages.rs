@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_bencode::value::Value;
 
 #[derive(Debug)]
 pub struct PeerMessage {
@@ -122,11 +123,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: HashMap<String, Vec<u8>>,
+    pub payload: HashMap<String, Value>,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: HashMap<String, Vec<u8>>) -> Self {
+    pub fn new(message_id: u8, payload: HashMap<String, Value>) -> Self {
         Self {
             message_id,
             payload,
@@ -138,9 +139,13 @@ impl ExtensionPayload {
         bytes.extend_from_slice(&self.message_id.to_be_bytes());
         for (key, value) in &self.payload {
             bytes.extend_from_slice(&key.as_bytes());
-            bytes.extend_from_slice(&value);
+            bytes.extend_from_slice(serde_bencode::to_bytes(&value).unwrap().as_slice());
         }
         bytes
+    }
+
+    pub fn to_string(&self) -> String {
+        serde_bencode::to_string(&self.payload).unwrap()
     }
 }
 
