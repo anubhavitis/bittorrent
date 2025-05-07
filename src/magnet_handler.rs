@@ -58,3 +58,22 @@ pub async fn download_piece(magnet_link: String, save_path: PathBuf, piece_index
     file.write_all(&data).unwrap();
     file.flush().unwrap();
 }
+
+pub async fn download_file(magnet_link: String, save_path: PathBuf) {
+    let mut magnet = MagnetLink::from(magnet_link)
+        .map_err(|e| e.to_string())
+        .unwrap();
+    let info = magnet.fetch_metadata_info().await.unwrap();
+    let torrent = Torrent::new(magnet.tracker_url.as_ref().unwrap().to_string(), info);
+    let mut client = Client::new(torrent.clone());
+    let peer = magnet.fetch_peers().await.unwrap()[0];
+    client.handshake(peer).await.unwrap();
+    client.init_download().await.unwrap();
+    let pieces = torrent.get_piece_count();
+    let mut file = File::create(save_path).unwrap();
+    for i in 0..pieces {
+        let data = client.download_piece(i as u32).await.unwrap();
+        file.write_all(&data).unwrap();
+    }
+    file.flush().unwrap();
+}

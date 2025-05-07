@@ -56,6 +56,12 @@ enum Command {
         link: String,
         piece_index: u32,
     },
+    #[command(name = "magnet_download")]
+    MagnetDownload {
+        #[arg(short = 'o')]
+        save_path: PathBuf,
+        link: String,
+    },
 }
 
 #[tokio::main]
@@ -80,5 +86,8 @@ async fn main() {
             link,
             piece_index,
         } => magnet_handler::download_piece(link, save_path, piece_index).await,
+        Command::MagnetDownload { save_path, link } => {
+            magnet_handler::download_file(link, save_path).await
+        }
     }
 }
