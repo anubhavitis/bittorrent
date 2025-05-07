@@ -135,7 +135,8 @@ impl MagnetLink {
         msg.extend(
             serde_bencode::to_bytes(&HashMap::from([(
                 "m".to_string(),
-                serde_bencode::to_bytes(&HashMap::from([("ut_metadata".to_string(), 21)])).unwrap(),
+                serde_bencode::to_string(&HashMap::from([("ut_metadata".to_string(), 21)]))
+                    .unwrap(),
             )]))
             .unwrap(),
         );
