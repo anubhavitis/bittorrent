@@ -120,27 +120,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: Vec<u8>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExtensionPayloadData {
-    pub m: Vec<u8>,
-}
-
-impl ExtensionPayloadData {
-    pub fn new(m: Vec<u8>) -> Self {
-        Self { m }
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let data = serde_bencode::to_bytes(&self.m).unwrap();
-        data
-    }
+    pub payload: ExtensionPayloadData,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
+    pub fn new(message_id: u8, payload: ExtensionPayloadData) -> Self {
         Self {
             message_id,
             payload,
@@ -154,20 +138,36 @@ impl ExtensionPayload {
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let message_id = bytes[0];
-        let payload = bytes[1..].to_vec();
+        let payload = ExtensionPayloadData::from_bytes(&bytes[1..]);
         Self {
             message_id,
             payload,
         }
     }
+}
 
-    pub fn get_payload_data(&self) -> ExtensionPayloadData {
-        let data: ExtensionPayloadData = serde_bencode::from_bytes(&self.payload).unwrap();
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExtensionPayloadData {
+    pub m: ExtensionPayloadDataM,
+}
+
+impl ExtensionPayloadData {
+    pub fn new(m: ExtensionPayloadDataM) -> Self {
+        Self { m }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let data = serde_bencode::to_bytes(&self.m).unwrap();
+        data
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let data: ExtensionPayloadData = serde_bencode::from_bytes(bytes).unwrap();
         data
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtensionPayloadDataM {
     pub ut_metadata: u32,
 }
