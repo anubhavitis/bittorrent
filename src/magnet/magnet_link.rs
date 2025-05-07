@@ -31,7 +31,7 @@ impl MagnetLink {
     pub fn from(magnet_link: String) -> Result<Self, Error> {
         if !magnet_link.starts_with("magnet:?") {
             return Err(anyhow::anyhow!(
-                "Invalid magnet link format, should start with 'magnet:?'"
+                "Invalid magnet link format should start with 'magnet:?'"
             ));
         }
 
