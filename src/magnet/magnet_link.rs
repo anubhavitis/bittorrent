@@ -4,9 +4,11 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use anyhow::Error;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
+use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
+use crate::peer_messages::ExtensionPayload;
 use crate::{peer_messages::MessageId, tcp::TcpManager};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -117,7 +119,7 @@ impl MagnetLink {
         Ok(peers)
     }
 
-    pub async fn extension_handshake(&self) -> Result<String, Error> {
+    pub async fn extension_handshake(&self) -> Result<(String, u32), Error> {
         let peers = self.fetch_peers().await?;
         let handshake_message = HandshakeMessage::new(self.get_info_hash(), true);
         let mut client = TcpManager::connect(peers[0]).await;
@@ -131,6 +133,8 @@ impl MagnetLink {
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Bitfield);
 
+        let peer_id = hex::encode(handshake_message.peer_id);
+
         let msg = HashMap::from([(
             "m".to_string(),
             HashMap::from([("ut_metadata".to_string(), 21)]),
@@ -141,9 +145,23 @@ impl MagnetLink {
 
         client.send_message(MessageId::Extension, msg_bytes).await?;
 
-        let (msg_id, _) = client.read_message().await?;
+        let (msg_id, payload) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Extension);
 
-        Ok(hex::encode(handshake_message.peer_id))
+        let extension_payload = ExtensionPayload::from_bytes(&payload);
+        assert_eq!(extension_payload.message_id, 0u8);
+
+        let mut extension_id = 0;
+        if let Value::Dict(dict) = extension_payload.payload {
+            let metadata = dict.get(&b"m".to_vec()).unwrap();
+            if let Value::Dict(inner_dict) = metadata {
+                let val = inner_dict.get(&b"ut_metadata".to_vec()).unwrap();
+                if let Value::Int(val) = val {
+                    extension_id = *val;
+                }
+            }
+        }
+
+        Ok((peer_id, extension_id as u32))
     }
 }

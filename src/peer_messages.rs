@@ -120,51 +120,19 @@ impl RequestPayload {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: HashMap<String, Value>,
+    pub payload: Value,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: HashMap<String, Value>) -> Self {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let message_id = bytes[0];
+        let payload: Value = serde_bencode::from_bytes(&bytes[1..]).unwrap();
         Self {
             message_id,
             payload,
         }
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![];
-        bytes.extend_from_slice(&self.message_id.to_be_bytes());
-        for (key, value) in &self.payload {
-            bytes.extend_from_slice(&key.as_bytes());
-            bytes.extend_from_slice(serde_bencode::to_bytes(&value).unwrap().as_slice());
-        }
-        bytes
-    }
-
-    pub fn to_string(&self) -> String {
-        serde_bencode::to_string(&self.payload).unwrap()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ExtensionPayloadData {
-    pub m: HashMap<String, u32>,
-}
-
-impl ExtensionPayloadData {
-    pub fn new(m: HashMap<String, u32>) -> Self {
-        Self { m }
-    }
-
-    pub fn to_string(&self) -> String {
-        serde_bencode::to_string(&self.m).unwrap()
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let data = serde_bencode::to_bytes(&self.m).unwrap();
-        data
     }
 }
