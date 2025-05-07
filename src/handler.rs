@@ -86,6 +86,7 @@ pub async fn downlaod(save_path: PathBuf, torrent: PathBuf) {
     let mut client = Client::new(torrent.clone());
     client.init_download(peer).await.unwrap();
     let pieces = torrent.get_piece_count();
+    dbg!(&pieces);
     let mut data = Vec::new();
     for i in 0..pieces {
         let piece_data = client.download_piece(i as u32).await.unwrap();
