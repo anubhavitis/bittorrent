@@ -131,17 +131,15 @@ impl MagnetLink {
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Bitfield);
 
-        let mut msg: Vec<u8> = vec![0u8];
-        msg.extend(
-            serde_bencode::to_bytes(&HashMap::from([(
-                "m".to_string(),
-                serde_bencode::to_string(&HashMap::from([("ut_metadata".to_string(), 21)]))
-                    .unwrap(),
-            )]))
-            .unwrap(),
-        );
+        let msg = HashMap::from([(
+            "m".to_string(),
+            HashMap::from([("ut_metadata".to_string(), 21)]),
+        )]);
 
-        client.send_message(MessageId::Extension, msg).await?;
+        let mut msg_bytes = vec![0u8];
+        msg_bytes.extend(serde_bencode::to_bytes(&msg).unwrap());
+
+        client.send_message(MessageId::Extension, msg_bytes).await?;
 
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Extension);
