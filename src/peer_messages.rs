@@ -120,11 +120,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: ExtensionPayloadData,
+    pub payload: Vec<u8>,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: ExtensionPayloadData) -> Self {
+    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
         Self {
             message_id,
             payload,
@@ -134,13 +134,13 @@ impl ExtensionPayload {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&self.message_id.to_be_bytes());
-        bytes.extend_from_slice(&self.payload.to_bytes());
+        bytes.extend_from_slice(&self.payload);
         bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let message_id = bytes[0];
-        let payload = ExtensionPayloadData::from_bytes(&bytes[1..]);
+        let payload = bytes[1..].to_vec();
         Self {
             message_id,
             payload,
@@ -150,11 +150,11 @@ impl ExtensionPayload {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtensionPayloadData {
-    pub m: ExtensionPayloadDataM,
+    pub m: Vec<u8>,
 }
 
 impl ExtensionPayloadData {
-    pub fn new(m: ExtensionPayloadDataM) -> Self {
+    pub fn new(m: Vec<u8>) -> Self {
         Self { m }
     }
 
@@ -180,8 +180,7 @@ impl ExtensionPayloadDataM {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![];
-        bytes.extend_from_slice(&self.ut_metadata.to_be_bytes());
+        let bytes = serde_bencode::to_bytes(&self).unwrap();
         bytes
     }
 
