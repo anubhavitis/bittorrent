@@ -120,11 +120,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: Vec<u8>,
+    pub payload: String,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
+    pub fn new(message_id: u8, payload: String) -> Self {
         Self {
             message_id,
             payload,
@@ -134,13 +134,13 @@ impl ExtensionPayload {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&self.message_id.to_be_bytes());
-        bytes.extend_from_slice(&self.payload);
+        bytes.extend_from_slice(self.payload.as_bytes());
         bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let message_id = bytes[0];
-        let payload = bytes[1..].to_vec();
+        let payload = String::from_utf8(bytes[1..].to_vec()).unwrap();
         Self {
             message_id,
             payload,
@@ -156,6 +156,10 @@ pub struct ExtensionPayloadData {
 impl ExtensionPayloadData {
     pub fn new(m: Vec<u8>) -> Self {
         Self { m }
+    }
+
+    pub fn to_string(&self) -> String {
+        serde_bencode::to_string(&self.m).unwrap()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

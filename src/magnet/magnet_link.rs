@@ -135,9 +135,9 @@ impl MagnetLink {
 
         let extension_payload_data_m = ExtensionPayloadDataM::new(21);
         let extension_payload_data = ExtensionPayloadData::new(extension_payload_data_m.to_bytes());
-        let extension_payload = ExtensionPayload::new(0u8, extension_payload_data.to_bytes());
-        dbg!(extension_payload.clone());
-        dbg!(extension_payload.to_bytes());
+        let extension_payload = ExtensionPayload::new(0u8, extension_payload_data.to_string());
+        // dbg!(extension_payload.clone());
+        // dbg!(extension_payload.to_bytes());
         client
             .send_message(MessageId::Extension, extension_payload.to_bytes())
             .await?;
