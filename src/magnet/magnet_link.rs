@@ -131,7 +131,6 @@ impl MagnetLink {
         }
 
         let (msg_id, _) = client.read_message().await?;
-        assert_eq!(msg_id, MessageId::Bitfield);
 
         let peer_id = hex::encode(handshake_message.peer_id);
 
@@ -146,7 +145,6 @@ impl MagnetLink {
         client.send_message(MessageId::Extension, msg_bytes).await?;
 
         let (msg_id, payload) = client.read_message().await?;
-        assert_eq!(msg_id, MessageId::Extension);
 
         let extension_payload = ExtensionPayload::from_bytes(&payload);
 
