@@ -149,7 +149,6 @@ impl MagnetLink {
         assert_eq!(msg_id, MessageId::Extension);
 
         let extension_payload = ExtensionPayload::from_bytes(&payload);
-        assert_eq!(extension_payload.message_id, 0u8);
 
         let extension_id = match &extension_payload.payload {
             Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
