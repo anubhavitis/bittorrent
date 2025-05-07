@@ -117,7 +117,7 @@ impl RequestPayload {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
     pub payload: Vec<u8>,
@@ -126,6 +126,17 @@ pub struct ExtensionPayload {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExtensionPayloadData {
     pub m: Vec<u8>,
+}
+
+impl ExtensionPayloadData {
+    pub fn new(m: Vec<u8>) -> Self {
+        Self { m }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let data = serde_bencode::to_bytes(&self.m).unwrap();
+        data
+    }
 }
 
 impl ExtensionPayload {
