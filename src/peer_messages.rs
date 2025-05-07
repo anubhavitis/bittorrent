@@ -122,11 +122,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: Vec<u8>,
+    pub payload: HashMap<String, Vec<u8>>,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
+    pub fn new(message_id: u8, payload: HashMap<String, Vec<u8>>) -> Self {
         Self {
             message_id,
             payload,
@@ -136,7 +136,10 @@ impl ExtensionPayload {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&self.message_id.to_be_bytes());
-        bytes.extend_from_slice(&self.payload);
+        for (key, value) in &self.payload {
+            bytes.extend_from_slice(&key.as_bytes());
+            bytes.extend_from_slice(&value);
+        }
         bytes
     }
 }

@@ -133,8 +133,13 @@ impl MagnetLink {
         assert_eq!(msg_id, MessageId::Bitfield);
 
         let extension_payload_data =
-            ExtensionPayloadData::new(HashMap::from([("ut_metadata".to_string(), 1)]));
-        let extension_payload = ExtensionPayload::new(0u8, extension_payload_data.to_bytes());
+            ExtensionPayloadData::new(HashMap::from([("ut_metadata".to_string(), 21)]));
+
+        let extension_payload = ExtensionPayload::new(
+            0u8,
+            HashMap::from([("m".to_string(), extension_payload_data.to_bytes())]),
+        );
+
         client
             .send_message(MessageId::Extension, extension_payload.to_bytes())
             .await?;
