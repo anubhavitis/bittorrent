@@ -17,11 +17,13 @@ struct TrackerResponse {
     peers: ByteBuf,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MagnetLink {
     pub info_hash: String,
     pub tracker_url: Option<String>,
     pub display_name: Option<String>,
+
+    client: Option<TcpManager>,
 }
 
 impl MagnetLink {
@@ -38,6 +40,7 @@ impl MagnetLink {
             info_hash: String::new(),
             tracker_url: None,
             display_name: None,
+            client: None,
         };
 
         for param in query.split('&') {
@@ -119,18 +122,29 @@ impl MagnetLink {
         Ok(peers)
     }
 
-    pub async fn extension_handshake(&self) -> Result<(String, u32), Error> {
+    async fn connect_client(&mut self, peer: SocketAddr) {
+        let client = TcpManager::connect(peer).await;
+        self.client = Some(client);
+    }
+
+    pub async fn extension_handshake(&mut self) -> Result<(String, u8), Error> {
         let peers = self.fetch_peers().await?;
         let handshake_message = HandshakeMessage::new(self.get_info_hash(), true);
-        let mut client = TcpManager::connect(peers[0]).await;
-        let handshake_message = client.handshake(handshake_message).await?;
+        self.connect_client(peers[0]).await;
+
+        let handshake_message = self
+            .client
+            .as_mut()
+            .unwrap()
+            .handshake(handshake_message)
+            .await?;
 
         if handshake_message.reserved[5] != 16 {
             dbg!(&handshake_message.reserved);
             return Err(anyhow::anyhow!("Failed to get peer ID"));
         }
 
-        let (msg_id, _) = client.read_message().await?;
+        let (msg_id, _) = self.client.as_mut().unwrap().read_message().await?;
 
         let peer_id = hex::encode(handshake_message.peer_id);
 
@@ -142,9 +156,13 @@ impl MagnetLink {
         let mut msg_bytes = vec![0u8];
         msg_bytes.extend(serde_bencode::to_bytes(&msg).unwrap());
 
-        client.send_message(MessageId::Extension, msg_bytes).await?;
+        self.client
+            .as_mut()
+            .unwrap()
+            .send_message(MessageId::Extension, msg_bytes)
+            .await?;
 
-        let (msg_id, payload) = client.read_message().await?;
+        let (msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
 
         let extension_payload = ExtensionPayload::from_bytes(&payload);
 
@@ -159,6 +177,29 @@ impl MagnetLink {
             _ => 0,
         };
 
-        Ok((peer_id, extension_id as u32))
+        Ok((peer_id, extension_id as u8))
+    }
+
+    pub async fn fetch_metadata_info(&mut self) -> Result<(), Error> {
+        let (_, extension_id) = self.extension_handshake().await?;
+        dbg!(&extension_id);
+        let msg_body = HashMap::from([("msg_type".to_string(), 0), ("piece".to_string(), 0)]);
+        let mut msg = vec![extension_id];
+        msg.extend(serde_bencode::to_bytes(&msg_body).unwrap());
+        self.client
+            .as_mut()
+            .unwrap()
+            .send_message(MessageId::Extension, msg)
+            .await?;
+
+        let (msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
+        assert_eq!(msg_id, MessageId::Extension);
+        // let extension_payload = ExtensionPayload::from_bytes(&payload);
+
+        // let extension_id = match &extension_payload.payload {
+        //     Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
+        //         Some(Value::Dict(inner_dict)) => match inner_dict.get(&b"ut_metadata".to_vec()) {
+
+        Ok(())
     }
 }

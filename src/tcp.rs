@@ -9,6 +9,7 @@ use tokio::{
 use crate::handshake::HandshakeMessage;
 use crate::peer_messages::{MessageId, PeerMessage};
 
+#[derive(Debug)]
 pub struct TcpManager {
     stream: TcpStream,
 }

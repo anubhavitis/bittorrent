@@ -39,11 +39,15 @@ enum Command {
     },
     #[command(name = "magnet_parse")]
     MagnetParse {
-        magnet_link: String,
+        link: String,
     },
     #[command(name = "magnet_handshake")]
     MagnetHandshake {
-        magnet_link: String,
+        link: String,
+    },
+    #[command(name = "magnet_info")]
+    MagnetInfo {
+        link: String,
     },
 }
 
@@ -61,7 +65,8 @@ async fn main() {
             piece_index,
         } => handler::download_piece(save_path, torrent, piece_index).await,
         Command::Download { save_path, torrent } => handler::downlaod(save_path, torrent).await,
-        Command::MagnetParse { magnet_link } => magnet_handler::parse(magnet_link),
-        Command::MagnetHandshake { magnet_link } => magnet_handler::handshake(magnet_link).await,
+        Command::MagnetParse { link } => magnet_handler::parse(link),
+        Command::MagnetHandshake { link } => magnet_handler::handshake(link).await,
+        Command::MagnetInfo { link } => magnet_handler::fetch_metadata_info(link).await,
     }
 }
