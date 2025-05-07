@@ -20,11 +20,14 @@ impl Client {
         }
     }
 
-    pub async fn init_download(&mut self, peer: SocketAddr) -> Result<(), Error> {
+    pub fn set_stream(&mut self, stream: TcpManager) {
+        self.stream = Some(stream);
+    }
+
+    pub async fn handshake(&mut self, peer: SocketAddr) -> Result<(), Error> {
         let stream = TcpManager::connect(peer).await;
         self.stream = Some(stream);
 
-        // Do Handshake
         let handshake_message = HandshakeMessage::new(self.torrent.get_info_hash(), false);
         let _ = self
             .stream
@@ -50,6 +53,10 @@ impl Client {
             ));
         }
 
+        Ok(())
+    }
+
+    pub async fn init_download(&mut self) -> Result<(), Error> {
         // Send interested message
         let _ = self
             .stream

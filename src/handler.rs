@@ -74,7 +74,8 @@ pub async fn download_piece(save_path: PathBuf, torrent: PathBuf, piece_index: u
     let torrent = Torrent::from(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent);
-    client.init_download(peer).await.unwrap();
+    client.handshake(peer).await.unwrap();
+    client.init_download().await.unwrap();
     let data = client.download_piece(piece_index).await.unwrap();
     let mut file = File::create(save_path).unwrap();
     file.write_all(&data).unwrap();
@@ -84,7 +85,8 @@ pub async fn downlaod(save_path: PathBuf, torrent: PathBuf) {
     let torrent = Torrent::from(&torrent);
     let peer = torrent.get_peers().await.unwrap()[0];
     let mut client = Client::new(torrent.clone());
-    client.init_download(peer).await.unwrap();
+    client.handshake(peer).await.unwrap();
+    client.init_download().await.unwrap();
     let pieces = torrent.get_piece_count();
     let mut data = Vec::new();
     for i in 0..pieces {

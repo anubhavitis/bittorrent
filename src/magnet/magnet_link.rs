@@ -8,7 +8,7 @@ use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
-use crate::manager::torrent::{Info, Torrent};
+use crate::manager::torrent::Info;
 use crate::peer_messages::ExtensionPayload;
 use crate::{peer_messages::MessageId, tcp::TcpManager};
 
@@ -181,7 +181,7 @@ impl MagnetLink {
         Ok((peer_id, extension_id as u8))
     }
 
-    pub async fn fetch_metadata_info(&mut self) -> Result<(), Error> {
+    pub async fn fetch_metadata_info(&mut self) -> Result<Info, Error> {
         let (_, extension_id) = self.extension_handshake().await?;
         dbg!(&extension_id);
         let msg_body = HashMap::from([("msg_type".to_string(), 0), ("piece".to_string(), 0)]);
@@ -202,21 +202,7 @@ impl MagnetLink {
         assert_eq!(extension_payload.message_id, 21);
 
         let info = Info::from_bytes(&data);
-        let torrent = Torrent::new(self.tracker_url.as_ref().unwrap().to_string(), info);
-        let info_hash = torrent.get_info_hash();
-        let info_hash_str = hex::encode(info_hash);
-        let tracker_url = torrent.announce.clone();
-        let hashes = torrent.get_piece_hashes();
-
-        println!("Tracker URL: {}", tracker_url);
-        println!("Length: {}", torrent.info.length);
-        println!("Info Hash: {}", info_hash_str);
-        println!("Piece Length: {}", torrent.info.piece_length);
-        println!("Piece Hashes:");
-        for hash in hashes {
-            println!("{}", hash);
-        }
-        Ok(())
+        Ok(info)
     }
 }
 

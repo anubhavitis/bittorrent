@@ -49,6 +49,13 @@ enum Command {
     MagnetInfo {
         link: String,
     },
+    #[command(name = "magnet_download_piece")]
+    MagnetDownloadPiece {
+        #[arg(short = 'o')]
+        save_path: PathBuf,
+        link: String,
+        piece_index: u32,
+    },
 }
 
 #[tokio::main]
@@ -68,5 +75,10 @@ async fn main() {
         Command::MagnetParse { link } => magnet_handler::parse(link),
         Command::MagnetHandshake { link } => magnet_handler::handshake(link).await,
         Command::MagnetInfo { link } => magnet_handler::fetch_metadata_info(link).await,
+        Command::MagnetDownloadPiece {
+            save_path,
+            link,
+            piece_index,
+        } => magnet_handler::download_piece(link, save_path, piece_index).await,
     }
 }
