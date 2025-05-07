@@ -151,16 +151,16 @@ impl MagnetLink {
         let extension_payload = ExtensionPayload::from_bytes(&payload);
         assert_eq!(extension_payload.message_id, 0u8);
 
-        let mut extension_id = 0;
-        if let Value::Dict(dict) = extension_payload.payload {
-            let metadata = dict.get(&b"m".to_vec()).unwrap();
-            if let Value::Dict(inner_dict) = metadata {
-                let val = inner_dict.get(&b"ut_metadata".to_vec()).unwrap();
-                if let Value::Int(val) = val {
-                    extension_id = *val;
-                }
-            }
-        }
+        let extension_id = match &extension_payload.payload {
+            Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
+                Some(Value::Dict(inner_dict)) => match inner_dict.get(&b"ut_metadata".to_vec()) {
+                    Some(Value::Int(val)) => *val,
+                    _ => 0,
+                },
+                _ => 0,
+            },
+            _ => 0,
+        };
 
         Ok((peer_id, extension_id as u32))
     }
