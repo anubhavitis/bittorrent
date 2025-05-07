@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use anyhow::Error;
@@ -6,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 
 use crate::handshake::HandshakeMessage;
-use crate::peer_messages::{
-    ExtensionPayload, ExtensionPayloadData, ExtensionPayloadDataM, PeerMessage,
-};
+use crate::peer_messages::{ExtensionPayload, ExtensionPayloadData};
 use crate::{peer_messages::MessageId, tcp::TcpManager};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -133,11 +132,9 @@ impl MagnetLink {
         let (msg_id, _) = client.read_message().await?;
         assert_eq!(msg_id, MessageId::Bitfield);
 
-        let extension_payload_data_m = ExtensionPayloadDataM::new(21);
-        let extension_payload_data = ExtensionPayloadData::new(extension_payload_data_m.to_bytes());
-        let extension_payload = ExtensionPayload::new(0u8, extension_payload_data.to_string());
-        // dbg!(extension_payload.clone());
-        // dbg!(extension_payload.to_bytes());
+        let extension_payload_data =
+            ExtensionPayloadData::new(HashMap::from([("ut_metadata".to_string(), 1)]));
+        let extension_payload = ExtensionPayload::new(0u8, extension_payload_data.to_bytes());
         client
             .send_message(MessageId::Extension, extension_payload.to_bytes())
             .await?;

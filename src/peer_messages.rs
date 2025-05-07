@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -120,11 +122,11 @@ impl RequestPayload {
 #[derive(Debug, Clone)]
 pub struct ExtensionPayload {
     pub message_id: u8,
-    pub payload: String,
+    pub payload: Vec<u8>,
 }
 
 impl ExtensionPayload {
-    pub fn new(message_id: u8, payload: String) -> Self {
+    pub fn new(message_id: u8, payload: Vec<u8>) -> Self {
         Self {
             message_id,
             payload,
@@ -134,27 +136,18 @@ impl ExtensionPayload {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&self.message_id.to_be_bytes());
-        bytes.extend_from_slice(self.payload.as_bytes());
+        bytes.extend_from_slice(&self.payload);
         bytes
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let message_id = bytes[0];
-        let payload = String::from_utf8(bytes[1..].to_vec()).unwrap();
-        Self {
-            message_id,
-            payload,
-        }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtensionPayloadData {
-    pub m: Vec<u8>,
+    pub m: HashMap<String, u32>,
 }
 
 impl ExtensionPayloadData {
-    pub fn new(m: Vec<u8>) -> Self {
+    pub fn new(m: HashMap<String, u32>) -> Self {
         Self { m }
     }
 
@@ -164,32 +157,6 @@ impl ExtensionPayloadData {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let data = serde_bencode::to_bytes(&self.m).unwrap();
-        data
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let data: ExtensionPayloadData = serde_bencode::from_bytes(bytes).unwrap();
-        data
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ExtensionPayloadDataM {
-    pub ut_metadata: u32,
-}
-
-impl ExtensionPayloadDataM {
-    pub fn new(ut_metadata: u32) -> Self {
-        Self { ut_metadata }
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let bytes = serde_bencode::to_bytes(&self).unwrap();
-        bytes
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let data: ExtensionPayloadDataM = serde_bencode::from_bytes(bytes).unwrap();
         data
     }
 }
