@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::{net::SocketAddr, path::PathBuf};
 
-use codecrafters_bittorrent::{handler, magnet_handler};
+use bittorrent::{handler, magnet_handler};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
