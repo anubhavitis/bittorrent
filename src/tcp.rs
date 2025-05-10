@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 
 use anyhow::Error;
 use tokio::{
@@ -6,8 +6,8 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::handshake::HandshakeMessage;
 use crate::peer_messages::{MessageId, PeerMessage};
+use crate::{handshake::HandshakeMessage, peer_messages::ExtensionPayload};
 
 #[derive(Debug)]
 pub struct TcpManager {
@@ -42,6 +42,24 @@ impl TcpManager {
 
         let resp = HandshakeMessage::from_bytes(&buffer);
         Ok(resp)
+    }
+
+    pub async fn extension_handshake(&mut self) -> Result<ExtensionPayload, Error> {
+        let mut msg_bytes = vec![0u8];
+        let msg = HashMap::from([(
+            "m".to_string(),
+            HashMap::from([("ut_metadata".to_string(), 21)]),
+        )]);
+        msg_bytes.extend(serde_bencode::to_bytes(&msg).unwrap());
+
+        // sending extension handshake message
+        self.send_message(MessageId::Extension, msg_bytes).await?;
+
+        // reading extension handshake response
+        let (_msg_id, payload) = self.read_message().await?;
+        println!("message Id: {:?}", _msg_id);
+        let extension_payload = ExtensionPayload::from_bytes(&payload);
+        Ok(extension_payload)
     }
 
     pub async fn read_message(&mut self) -> Result<(MessageId, Vec<u8>), Error> {

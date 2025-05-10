@@ -1,16 +1,9 @@
-use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use anyhow::Error;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
-use serde_bencode::value::Value;
 use serde_bytes::ByteBuf;
-
-use crate::handshake::HandshakeMessage;
-use crate::manager::torrent::Info;
-use crate::peer_messages::ExtensionPayload;
-use crate::{peer_messages::MessageId, tcp::TcpManager};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
@@ -18,13 +11,11 @@ struct TrackerResponse {
     peers: ByteBuf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MagnetLink {
     pub info_hash: String,
     pub tracker_url: Option<String>,
     pub display_name: Option<String>,
-
-    client: Option<TcpManager>,
 }
 
 impl MagnetLink {
@@ -41,7 +32,6 @@ impl MagnetLink {
             info_hash: String::new(),
             tracker_url: None,
             display_name: None,
-            client: None,
         };
 
         for param in query.split('&') {
@@ -121,95 +111,5 @@ impl MagnetLink {
         }
 
         Ok(peers)
-    }
-
-    async fn connect_client(&mut self, peer: SocketAddr) {
-        let client = TcpManager::connect(peer).await;
-        self.client = Some(client);
-    }
-
-    pub async fn extension_handshake(&mut self) -> Result<(String, u8), Error> {
-        let peers = self.fetch_peers().await?;
-        let handshake_message = HandshakeMessage::new(self.get_info_hash(), true);
-        self.connect_client(peers[0]).await;
-
-        let handshake_message = self
-            .client
-            .as_mut()
-            .unwrap()
-            .handshake(handshake_message)
-            .await?;
-
-        if handshake_message.reserved[5] != 16 {
-            dbg!(&handshake_message.reserved);
-            return Err(anyhow::anyhow!("Failed to get peer ID"));
-        }
-
-        let (_msg_id, _payload) = self.client.as_mut().unwrap().read_message().await?;
-
-        let peer_id = hex::encode(handshake_message.peer_id);
-
-        let msg = HashMap::from([(
-            "m".to_string(),
-            HashMap::from([("ut_metadata".to_string(), 21)]),
-        )]);
-
-        let mut msg_bytes = vec![0u8];
-        msg_bytes.extend(serde_bencode::to_bytes(&msg).unwrap());
-
-        self.client
-            .as_mut()
-            .unwrap()
-            .send_message(MessageId::Extension, msg_bytes)
-            .await?;
-
-        let (_msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
-
-        let extension_payload = ExtensionPayload::from_bytes(&payload);
-
-        let extension_id = match &extension_payload.payload {
-            Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
-                Some(Value::Dict(inner_dict)) => match inner_dict.get(&b"ut_metadata".to_vec()) {
-                    Some(Value::Int(val)) => *val,
-                    _ => 0,
-                },
-                _ => 0,
-            },
-            _ => 0,
-        };
-
-        Ok((peer_id, extension_id as u8))
-    }
-
-    pub async fn fetch_metadata_info(&mut self) -> Result<Info, Error> {
-        let (_, extension_id) = self.extension_handshake().await?;
-        dbg!(&extension_id);
-        let msg_body = HashMap::from([("msg_type".to_string(), 0), ("piece".to_string(), 0)]);
-        let mut msg = vec![extension_id];
-        msg.extend(serde_bencode::to_bytes(&msg_body).unwrap());
-        self.client
-            .as_mut()
-            .unwrap()
-            .send_message(MessageId::Extension, msg)
-            .await?;
-
-        let (msg_id, payload) = self.client.as_mut().unwrap().read_message().await?;
-        assert_eq!(msg_id, MessageId::Extension);
-
-        let (header, data) = split_header_and_data(&payload).unwrap();
-
-        let extension_payload = ExtensionPayload::from_bytes(&header);
-        assert_eq!(extension_payload.message_id, 21);
-
-        let info = Info::from_bytes(&data);
-        Ok(info)
-    }
-}
-
-fn split_header_and_data(message: &[u8]) -> Option<(&[u8], &[u8])> {
-    if let Some(pos) = message.windows(2).position(|window| window == b"ee") {
-        Some((&message[..pos + 2], &message[pos + 2..]))
-    } else {
-        None
     }
 }

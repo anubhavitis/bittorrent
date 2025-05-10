@@ -24,6 +24,7 @@ impl Info {
         info
     }
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackerResponse {
     interval: u32,
@@ -115,5 +116,21 @@ impl Torrent {
 
     pub fn get_piece_hash(&self, piece_index: usize) -> Vec<u8> {
         self.info.pieces[piece_index * 20..(piece_index + 1) * 20].to_vec()
+    }
+
+    pub fn pretty_print(&self) {
+        let info_hash = self.get_info_hash();
+        let info_hash_str = hex::encode(info_hash);
+        let tracker_url = self.announce.clone();
+        let hashes = self.get_piece_hashes();
+
+        println!("Tracker URL: {}", tracker_url);
+        println!("Length: {}", self.info.length);
+        println!("Info Hash: {}", info_hash_str);
+        println!("Piece Length: {}", self.info.piece_length);
+        println!("Piece Hashes:");
+        for hash in hashes {
+            println!("{}", hash);
+        }
     }
 }

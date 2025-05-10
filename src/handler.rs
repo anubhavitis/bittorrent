@@ -2,8 +2,8 @@ use serde_json::Number;
 use std::{fs::File, io::Write, net::SocketAddr, path::PathBuf};
 
 use crate::handshake::HandshakeMessage;
-use crate::manager::{client::Client, torrent::Torrent};
 use crate::tcp::TcpManager;
+use crate::torrent::{client::Client, torrent::Torrent};
 
 fn jsonify(value: &serde_bencode::value::Value) -> serde_json::Value {
     match value {
@@ -29,19 +29,7 @@ pub fn decode_bencoded_value(encoded_value: &str) {
 
 pub fn get_info(file_name: &std::path::PathBuf) {
     let torrent = Torrent::from(file_name);
-    let info_hash = torrent.get_info_hash();
-    let info_hash_str = hex::encode(info_hash);
-    let tracker_url = torrent.announce.clone();
-    let hashes = torrent.get_piece_hashes();
-
-    println!("Tracker URL: {}", tracker_url);
-    println!("Length: {}", torrent.info.length);
-    println!("Info Hash: {}", info_hash_str);
-    println!("Piece Length: {}", torrent.info.piece_length);
-    println!("Piece Hashes:");
-    for hash in hashes {
-        println!("{}", hash);
-    }
+    torrent.pretty_print();
 }
 
 pub async fn peers(file_name: &std::path::PathBuf) {

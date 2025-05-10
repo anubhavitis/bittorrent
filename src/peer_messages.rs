@@ -133,4 +133,19 @@ impl ExtensionPayload {
             payload,
         }
     }
+
+    pub fn get_extension_id(&self) -> u32 {
+        let extension_id = match &self.payload {
+            Value::Dict(dict) => match dict.get(&b"m".to_vec()) {
+                Some(Value::Dict(inner_dict)) => match inner_dict.get(&b"ut_metadata".to_vec()) {
+                    Some(Value::Int(val)) => *val,
+                    _ => 0,
+                },
+                _ => 0,
+            },
+            _ => 0,
+        };
+
+        extension_id as u32
+    }
 }

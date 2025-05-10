@@ -1,1 +1,2 @@
-pub mod magnet_link;
+pub mod client;
+pub mod magnet;

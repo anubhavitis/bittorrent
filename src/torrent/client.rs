@@ -4,7 +4,7 @@ use anyhow::Error;
 use sha1::{Digest, Sha1};
 
 use crate::handshake::HandshakeMessage;
-use crate::manager::torrent::Torrent;
+use crate::torrent::torrent::Torrent;
 use crate::peer_messages::{MessageId, PiecePayload, RequestPayload};
 use crate::tcp::TcpManager;
 pub struct Client {
