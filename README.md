@@ -9,23 +9,35 @@ A lightweight and efficient BitTorrent client implementation in Rust. This proje
 - Peer protocol implementation
 - Efficient file downloading with pipelining
 - Written in Rust for performance and safety
-
-## TEST
-
-- To download
-  - ```cargo run magnet_download -o test.gif  "magnet:?xt=urn:btih:c5fb9894bdaba464811b088d806bdd611ba490af&dn=magnet3.gif&tr=http%3A%2F%2Fbittorrent-test-tracker.codecrafters.io%2Fannounce"``` via magnet-lik
-  - ```cargo run download -o test2.txt sample.torrent``` via provided sample.torrent
   
-## Issues
-
-- currently all the peices are getting downloaded from the same peer. 
-  - Will implement concurrent download using mulitple peers
-  - And, as per bittorent paper, we should be downloading the rarest piece first. Will implement that soon too.
-
 ## Prerequisites
 
 - Rust (latest stable version)
 - Cargo package manager
+
+
+## TEST
+
+```
+git clone https://github.com/anubhavitis/bittorrent.git
+cd bittorrent
+```
+
+Download via magnet:
+```
+cargo run magnet_download -o test.gif  "magnet:?xt=urn:btih:c5fb9894bdaba464811b088d806bdd611ba490af&dn=magnet3.gif&tr=http%3A%2F%2Fbittorrent-test-tracker.codecrafters.io%2Fannounce"
+``` 
+
+Download via provided sample.torrent
+```
+cargo run download -o test2.txt sample.torrent
+``` 
+  
+## Issues
+currently all the peices are getting downloaded from the same peer. 
+  - Will implement concurrent download using mulitple peers
+  - And, as per bittorent paper, we should be downloading the rarest piece first. Will implement that soon too.
+
 
 ## Project Structure
 
