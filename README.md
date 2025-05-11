@@ -41,10 +41,15 @@ currently all the peices are getting downloaded from the same peer.
 
 ## Project Structure
 
-- `src/main.rs` - Entry point of the application
-- `src/torrent.rs` - Torrent file parsing and handling
-- `src/peer.rs` - Peer protocol implementation
-- `src/tracker.rs` - Tracker communication logic
+| File/Directory | Description |
+|----------------|-------------|
+| `src/main.rs` | Entry point of the application |
+| `src/handlers/` | Command handlers for different download types |
+| `src/magnet/` | Magnet link related functionality |
+| `src/torrent/` | Torrent file related functionality |
+| `src/peer_messages.rs` | BitTorrent peer protocol messages |
+| `src/handshake.rs` | Peer handshake protocol |
+| `src/tcp.rs` | TCP connection handling |
 
 ## Contributing
 
